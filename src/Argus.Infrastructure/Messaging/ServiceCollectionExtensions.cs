@@ -20,4 +20,21 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
+    /// <summary>
+    /// Registers a Kafka consumer for the specified message type.
+    /// </summary>
+    public static IServiceCollection AddKafkaConsumer<TValue>(
+        this IServiceCollection services,
+        string bootstrapServers,
+        string groupId)
+    {
+        services.AddSingleton<IMessageConsumer<TValue>>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<KafkaConsumer<TValue>>>();
+            return new KafkaConsumer<TValue>(bootstrapServers, groupId, logger);
+        });
+
+        return services;
+    }
 }
