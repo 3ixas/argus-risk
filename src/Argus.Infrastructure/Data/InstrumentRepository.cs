@@ -1,7 +1,7 @@
 using Argus.Domain.Enums;
 using Argus.Domain.Models;
 
-namespace Argus.MarketDataSimulator.Services;
+namespace Argus.Infrastructure.Data;
 
 /// <summary>
 /// Provides reference data for tradeable instruments.

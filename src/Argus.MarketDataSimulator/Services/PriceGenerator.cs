@@ -1,5 +1,6 @@
 using Argus.Domain.Enums;
 using Argus.Domain.Models;
+using Argus.Infrastructure.Data;
 using Argus.MarketDataSimulator.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

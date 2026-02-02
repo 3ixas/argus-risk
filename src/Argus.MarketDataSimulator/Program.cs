@@ -1,4 +1,5 @@
 using Argus.Domain.Models;
+using Argus.Infrastructure.Data;
 using Argus.Infrastructure.Messaging;
 using Argus.MarketDataSimulator.Configuration;
 using Argus.MarketDataSimulator.Services;
