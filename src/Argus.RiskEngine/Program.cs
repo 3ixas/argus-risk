@@ -1,5 +1,7 @@
 using Argus.Domain.Models;
+using Argus.Infrastructure.EventStore;
 using Argus.Infrastructure.Messaging;
+using Argus.RiskEngine.Services;
 using Argus.RiskEngine.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +12,14 @@ var consumerGroup = builder.Configuration["Kafka:ConsumerGroup"] ?? "argus-risk-
 
 // Kafka consumer
 builder.Services.AddKafkaConsumer<Trade>(kafkaBootstrapServers, consumerGroup);
+
+// Marten event store (PostgreSQL)
+var connectionString = builder.Configuration["PostgreSQL:ConnectionString"]
+    ?? "Host=localhost;Database=argus;Username=argus;Password=argus";
+builder.Services.AddMartenEventStore(connectionString);
+
+// Trade processing
+builder.Services.AddScoped<TradeProcessor>();
 
 // Background worker
 builder.Services.AddHostedService<TradeConsumerWorker>();

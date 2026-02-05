@@ -1,17 +1,20 @@
 using Argus.Domain.Models;
 using Argus.Infrastructure.Messaging;
+using Argus.RiskEngine.Services;
 
 namespace Argus.RiskEngine.Workers;
 
 /// <summary>
-/// Background worker that consumes trades from Kafka.
-/// In Feature 2a, we just log them. Event sourcing comes in 2b.
+/// Background worker that consumes trades from Kafka and processes them
+/// through the event sourcing pipeline. Creates a new DI scope per trade
+/// so each trade gets its own IDocumentSession (unit of work).
 /// </summary>
 public sealed class TradeConsumerWorker : BackgroundService
 {
     private const string TradesTopic = "trades.inbound";
 
     private readonly IMessageConsumer<Trade> _consumer;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<TradeConsumerWorker> _logger;
 
     private long _tradesProcessed;
@@ -20,9 +23,11 @@ public sealed class TradeConsumerWorker : BackgroundService
 
     public TradeConsumerWorker(
         IMessageConsumer<Trade> consumer,
+        IServiceScopeFactory scopeFactory,
         ILogger<TradeConsumerWorker> logger)
     {
         _consumer = consumer;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -46,24 +51,21 @@ public sealed class TradeConsumerWorker : BackgroundService
                 }
 
                 var trade = result.Value;
-                _tradesProcessed++;
 
+                // Process trade through event sourcing pipeline (scoped session)
+                await using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var processor = scope.ServiceProvider.GetRequiredService<TradeProcessor>();
+                    await processor.ProcessAsync(trade, stoppingToken);
+                }
+
+                _tradesProcessed++;
                 if (trade.Side == Domain.Enums.TradeSide.Buy)
                     _buyCount++;
                 else
                     _sellCount++;
 
-                _logger.LogInformation(
-                    "Trade received: {Side} {Qty} {Symbol} @ {Price:F2} {Ccy} [partition={Partition}, offset={Offset}]",
-                    trade.Side,
-                    trade.Quantity,
-                    trade.Symbol,
-                    trade.Price,
-                    trade.Currency,
-                    result.Partition,
-                    result.Offset);
-
-                // Commit offset after successful processing
+                // Commit offset after successful processing + persistence
                 _consumer.Commit();
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -73,7 +75,7 @@ public sealed class TradeConsumerWorker : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error consuming trade");
-                await Task.Delay(1000, stoppingToken); // Back off on error
+                await Task.Delay(1000, stoppingToken);
             }
         }
 
