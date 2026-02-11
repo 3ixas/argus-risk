@@ -11,7 +11,6 @@ import {
 import {
   HubConnection,
   HubConnectionBuilder,
-  HubConnectionState,
   LogLevel,
 } from "@microsoft/signalr";
 import type { RiskSnapshot } from "@/types/domain";
