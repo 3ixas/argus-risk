@@ -21,7 +21,8 @@ public sealed class KafkaProducer<TValue> : IMessageProducer<TValue>, IDisposabl
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
+            WriteIndented = false,
+            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
         };
 
         var config = new ProducerConfig
