@@ -1,6 +1,7 @@
 import { ConnectionStatus } from "@/components/connection-status";
 import { PortfolioOverview } from "@/components/portfolio-overview";
 import { PositionTable } from "@/components/position-table";
+import { ConcentrationCharts } from "@/components/concentration-charts";
 
 export default function DashboardPage() {
   return (
@@ -21,6 +22,9 @@ export default function DashboardPage() {
 
         {/* Portfolio Overview Cards */}
         <PortfolioOverview />
+
+        {/* Concentration Charts */}
+        <ConcentrationCharts />
 
         {/* Positions Grid */}
         <section>
