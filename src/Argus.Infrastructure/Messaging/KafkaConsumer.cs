@@ -24,7 +24,8 @@ public sealed class KafkaConsumer<TValue> : IMessageConsumer<TValue>
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = true
+            PropertyNameCaseInsensitive = true,
+            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
         };
 
         var config = new ConsumerConfig

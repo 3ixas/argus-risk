@@ -7,7 +7,15 @@ using Argus.Infrastructure.Data;
 using Argus.Infrastructure.EventStore;
 using Argus.Infrastructure.Messaging;
 
+using System.Text.Json.Serialization;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Serialize enums as strings ("USD", "Technology") instead of integers (0, 1, 2)
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 // Kafka configuration
 var kafkaBootstrapServers = builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:19092";
@@ -29,6 +37,7 @@ builder.Services.AddSignalR()
     .AddJsonProtocol(options =>
     {
         options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
 // CORS — required for SignalR WebSocket negotiation from browser clients
