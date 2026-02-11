@@ -1,5 +1,6 @@
 import { ConnectionStatus } from "@/components/connection-status";
 import { PortfolioOverview } from "@/components/portfolio-overview";
+import { PositionTable } from "@/components/position-table";
 
 export default function DashboardPage() {
   return (
@@ -20,6 +21,12 @@ export default function DashboardPage() {
 
         {/* Portfolio Overview Cards */}
         <PortfolioOverview />
+
+        {/* Positions Grid */}
+        <section>
+          <h2 className="mb-4 text-lg font-semibold">Open Positions</h2>
+          <PositionTable />
+        </section>
       </div>
     </main>
   );
