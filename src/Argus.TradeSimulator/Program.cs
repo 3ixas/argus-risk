@@ -20,8 +20,9 @@ builder.Services.AddSingleton<TradeGenerator>();
 // Kafka producer
 builder.Services.AddKafkaProducer<Trade>(kafkaBootstrapServers);
 
-// Background worker
-builder.Services.AddHostedService<TradeSimulatorWorker>();
+// Background worker (registered as singleton + hosted service for DI resolution in endpoints)
+builder.Services.AddSingleton<TradeSimulatorWorker>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<TradeSimulatorWorker>());
 
 // Health checks
 builder.Services.AddHealthChecks();
