@@ -41,11 +41,13 @@ builder.Services.AddSignalR()
     });
 
 // CORS — required for SignalR WebSocket negotiation from browser clients
+// Docker sets CORS__Origins env var; defaults to localhost:3000 for local dev
+var corsOrigins = builder.Configuration["CORS:Origins"] ?? "http://localhost:3000";
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        policy.WithOrigins(corsOrigins.Split(','))
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
