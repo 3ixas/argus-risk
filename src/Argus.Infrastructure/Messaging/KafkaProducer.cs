@@ -28,7 +28,7 @@ public sealed class KafkaProducer<TValue> : IMessageProducer<TValue>, IDisposabl
         var config = new ProducerConfig
         {
             BootstrapServers = bootstrapServers,
-            Acks = Acks.Leader, // Wait for leader acknowledgement (balance of durability/speed)
+            Acks = Acks.All, // Required when EnableIdempotence is true
             EnableIdempotence = true, // Exactly-once semantics within a partition
             MessageSendMaxRetries = 3,
             RetryBackoffMs = 100,
