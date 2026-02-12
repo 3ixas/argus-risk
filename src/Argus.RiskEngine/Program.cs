@@ -31,11 +31,15 @@ builder.Services.AddSingleton<PositionCache>();
 // Trade processing (scoped — one per trade)
 builder.Services.AddScoped<TradeProcessor>();
 
-// Background workers
-builder.Services.AddHostedService<TradeConsumerWorker>();
-builder.Services.AddHostedService<PriceConsumerWorker>();
-builder.Services.AddHostedService<FxRateConsumerWorker>();
-builder.Services.AddHostedService<RiskSnapshotWorker>();
+// Background workers (registered as singleton + hosted service for DI resolution in endpoints)
+builder.Services.AddSingleton<TradeConsumerWorker>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<TradeConsumerWorker>());
+builder.Services.AddSingleton<PriceConsumerWorker>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<PriceConsumerWorker>());
+builder.Services.AddSingleton<FxRateConsumerWorker>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<FxRateConsumerWorker>());
+builder.Services.AddSingleton<RiskSnapshotWorker>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<RiskSnapshotWorker>());
 
 // Health checks
 builder.Services.AddHealthChecks();
