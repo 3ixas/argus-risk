@@ -1,6 +1,6 @@
-version: "3.9"
-
 services:
+  # ── Infrastructure ──
+
   # Redpanda - Kafka-compatible message broker
   # No JVM, no ZooKeeper, just fast streaming
   redpanda:
@@ -52,7 +52,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # PostgreSQL - Database for Marten event store (used in later features)
+  # PostgreSQL - Marten event store
   postgres:
     image: postgres:16-alpine
     container_name: argus-postgres
@@ -69,6 +69,141 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ── Init Containers ──
+
+  # Create Kafka topics before services start (runs once, then exits)
+  init-topics:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.1.1
+    container_name: argus-init-topics
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    volumes:
+      - ./create-topics.sh:/create-topics.sh:ro
+    entrypoint: ["/bin/bash", "/create-topics.sh"]
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+
+  # ── .NET Services ──
+
+  market-data-simulator:
+    build:
+      context: ..
+      dockerfile: docker/dotnet.Dockerfile
+      args:
+        SERVICE_NAME: Argus.MarketDataSimulator
+    container_name: argus-market-data-simulator
+    depends_on:
+      init-topics:
+        condition: service_completed_successfully
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      Urls: http://+:8080
+      Kafka__BootstrapServers: redpanda:9092
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  trade-simulator:
+    build:
+      context: ..
+      dockerfile: docker/dotnet.Dockerfile
+      args:
+        SERVICE_NAME: Argus.TradeSimulator
+    container_name: argus-trade-simulator
+    depends_on:
+      market-data-simulator:
+        condition: service_healthy
+    ports:
+      - "5002:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      Urls: http://+:8080
+      Kafka__BootstrapServers: redpanda:9092
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  risk-engine:
+    build:
+      context: ..
+      dockerfile: docker/dotnet.Dockerfile
+      args:
+        SERVICE_NAME: Argus.RiskEngine
+    container_name: argus-risk-engine
+    depends_on:
+      postgres:
+        condition: service_healthy
+      market-data-simulator:
+        condition: service_healthy
+    ports:
+      - "5003:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      Urls: http://+:8080
+      Kafka__BootstrapServers: redpanda:9092
+      PostgreSQL__ConnectionString: Host=postgres;Database=argus;Username=argus;Password=argus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/dotnet.Dockerfile
+      args:
+        SERVICE_NAME: Argus.Api
+    container_name: argus-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      init-topics:
+        condition: service_completed_successfully
+    ports:
+      - "5050:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      Urls: http://+:8080
+      Kafka__BootstrapServers: redpanda:9092
+      PostgreSQL__ConnectionString: Host=postgres;Database=argus;Username=argus;Password=argus
+      CORS__Origins: "http://localhost:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Frontend ──
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:5050
+        NEXT_PUBLIC_SIGNALR_URL: http://localhost:5050/hubs/risk
+    container_name: argus-web
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      # Runtime env var for server-side rendering (Docker internal network)
+      API_URL: http://argus-api:8080
 
 volumes:
   redpanda-data:
