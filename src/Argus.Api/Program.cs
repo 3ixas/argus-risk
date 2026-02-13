@@ -1,6 +1,7 @@
 using Argus.Api.Caches;
 using Argus.Api.Endpoints;
 using Argus.Api.Hubs;
+using Argus.Api.Services;
 using Argus.Api.Workers;
 using Argus.Domain.Models;
 using Argus.Infrastructure.Data;
@@ -30,7 +31,11 @@ builder.Services.AddMartenEventStore(connectionString);
 
 // Singletons
 builder.Services.AddSingleton<RiskSnapshotCache>();
+builder.Services.AddSingleton<ReconciliationCache>();
 builder.Services.AddSingleton<InstrumentRepository>();
+
+// Scoped services
+builder.Services.AddScoped<ReconciliationService>();
 
 // SignalR with camelCase JSON (matches Kafka serialization convention)
 builder.Services.AddSignalR()
@@ -85,6 +90,7 @@ app.MapGet("/", (RiskSnapshotCache snapshotCache) => new
 app.MapPositionEndpoints();
 app.MapRiskEndpoints();
 app.MapInstrumentEndpoints();
+app.MapReconciliationEndpoints();
 
 // SignalR hub
 app.MapHub<RiskHub>("/hubs/risk");
