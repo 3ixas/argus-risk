@@ -61,3 +61,21 @@ export interface RiskSnapshot {
   positionCount: number;
   openPositionCount: number;
 }
+
+export interface PositionDiscrepancy {
+  instrumentId: string;
+  symbol: string;
+  field: string;
+  expected: string;
+  actual: string;
+  difference: number | null;
+}
+
+export interface ReconciliationReport {
+  timestamp: string;
+  totalEventsReplayed: number;
+  expectedChecksum: string;
+  actualChecksum: string;
+  passed: boolean;
+  discrepancies: PositionDiscrepancy[];
+}
