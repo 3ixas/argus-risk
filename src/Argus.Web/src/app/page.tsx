@@ -2,6 +2,7 @@ import { ConnectionStatus } from "@/components/connection-status";
 import { PortfolioOverview } from "@/components/portfolio-overview";
 import { PositionTable } from "@/components/position-table";
 import { ConcentrationCharts } from "@/components/concentration-charts";
+import { ReconciliationStatus } from "@/components/reconciliation-status";
 
 export default function DashboardPage() {
   return (
@@ -25,6 +26,9 @@ export default function DashboardPage() {
 
         {/* Concentration Charts */}
         <ConcentrationCharts />
+
+        {/* Reconciliation */}
+        <ReconciliationStatus />
 
         {/* Positions Grid */}
         <section>
