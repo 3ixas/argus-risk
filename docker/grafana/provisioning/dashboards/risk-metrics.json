@@ -1,0 +1,19 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [],
+  "schemaVersion": 39,
+  "tags": ["argus"],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Risk Metrics",
+  "uid": "argus-risk-metrics",
+  "version": 1,
+  "refresh": "5s"
+}

@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: "market-data-simulator"
+    static_configs:
+      - targets: ["market-data-simulator:8080"]
+
+  - job_name: "trade-simulator"
+    static_configs:
+      - targets: ["trade-simulator:8080"]
+
+  - job_name: "risk-engine"
+    static_configs:
+      - targets: ["risk-engine:8080"]
+
+  - job_name: "api"
+    static_configs:
+      - targets: ["api:8080"]
