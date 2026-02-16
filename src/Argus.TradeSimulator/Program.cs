@@ -1,11 +1,15 @@
 using Argus.Domain.Models;
 using Argus.Infrastructure.Data;
 using Argus.Infrastructure.Messaging;
+using Argus.Infrastructure.Telemetry;
 using Argus.TradeSimulator.Configuration;
 using Argus.TradeSimulator.Services;
 using Argus.TradeSimulator.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// OpenTelemetry (metrics → Prometheus, traces → Jaeger)
+builder.Services.AddArgusOpenTelemetry("argus-trade-simulator", builder.Configuration);
 
 // Configuration
 builder.Services.Configure<TradeSimulatorOptions>(
@@ -28,6 +32,9 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<TradeSimulatorWork
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+
+// Prometheus metrics scraping endpoint
+app.UseOpenTelemetryPrometheusScrapingEndpoint();
 
 // Health endpoint for container orchestration
 app.MapHealthChecks("/health");

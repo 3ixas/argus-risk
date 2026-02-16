@@ -1,5 +1,7 @@
+using System.Diagnostics.Metrics;
 using Argus.Domain.Models;
 using Argus.Infrastructure.Messaging;
+using Argus.Infrastructure.Telemetry;
 using Argus.TradeSimulator.Configuration;
 using Argus.TradeSimulator.Services;
 using Microsoft.Extensions.Options;
@@ -12,6 +14,9 @@ namespace Argus.TradeSimulator.Workers;
 public sealed class TradeSimulatorWorker : BackgroundService
 {
     private const string TradesTopic = "trades.inbound";
+
+    private static readonly Counter<long> TradesGeneratedCounter =
+        ArgusDiagnostics.Meter.CreateCounter<long>("argus.trades.generated", description: "Total trades generated");
 
     private readonly TradeGenerator _tradeGenerator;
     private readonly IMessageProducer<Trade> _producer;
@@ -44,7 +49,12 @@ public sealed class TradeSimulatorWorker : BackgroundService
         {
             try
             {
+                using var activity = ArgusDiagnostics.ActivitySource.StartActivity("trade.generate");
+
                 var trade = _tradeGenerator.GenerateTrade();
+
+                activity?.SetTag("trade.symbol", trade.Symbol);
+                activity?.SetTag("trade.side", trade.Side.ToString());
 
                 await _producer.ProduceAsync(
                     TradesTopic,
@@ -53,6 +63,7 @@ public sealed class TradeSimulatorWorker : BackgroundService
                     stoppingToken);
 
                 _tradesGenerated++;
+                TradesGeneratedCounter.Add(1);
 
                 _logger.LogInformation(
                     "Trade #{Count}: {Side} {Qty} {Symbol} @ {Price:F2} {Ccy}",
