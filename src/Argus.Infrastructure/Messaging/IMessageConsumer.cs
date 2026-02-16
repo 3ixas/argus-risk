@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Argus.Infrastructure.Messaging;
 
 /// <summary>
@@ -28,12 +30,14 @@ public interface IMessageConsumer<TValue> : IDisposable
 }
 
 /// <summary>
-/// Result of consuming a message, containing the value and metadata.
+/// Result of consuming a message, containing the value, metadata, and optional trace context
+/// propagated from the producer via Kafka headers.
 /// </summary>
 public sealed record ConsumeResult<TValue>(
     TValue Value,
     string Topic,
     int Partition,
     long Offset,
-    string? Key
+    string? Key,
+    ActivityContext? TraceContext = null
 );
