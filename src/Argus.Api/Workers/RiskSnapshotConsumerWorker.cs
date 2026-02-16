@@ -1,7 +1,9 @@
+using System.Diagnostics.Metrics;
 using Argus.Api.Caches;
 using Argus.Api.Hubs;
 using Argus.Domain.Models;
 using Argus.Infrastructure.Messaging;
+using Argus.Infrastructure.Telemetry;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Argus.Api.Workers;
@@ -14,6 +16,9 @@ namespace Argus.Api.Workers;
 public sealed class RiskSnapshotConsumerWorker : BackgroundService
 {
     private const string SnapshotTopic = "risk.snapshots";
+
+    private static readonly Counter<long> SnapshotsReceivedCounter =
+        ArgusDiagnostics.Meter.CreateCounter<long>("argus.api.snapshots.received", description: "Total risk snapshots received by API");
 
     private readonly IMessageConsumer<RiskSnapshot> _consumer;
     private readonly RiskSnapshotCache _cache;
@@ -50,6 +55,7 @@ public sealed class RiskSnapshotConsumerWorker : BackgroundService
 
                 _cache.Update(result.Value);
                 _snapshotsReceived++;
+                SnapshotsReceivedCounter.Add(1);
                 _consumer.Commit();
 
                 await _hubContext.Clients.All.SendAsync(

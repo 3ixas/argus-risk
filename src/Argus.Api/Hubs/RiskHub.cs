@@ -9,6 +9,13 @@ namespace Argus.Api.Hubs;
 /// </summary>
 public sealed class RiskHub : Hub
 {
+    private static int _activeConnections;
+
+    /// <summary>
+    /// Current number of connected SignalR clients. Read by ObservableGauge at scrape time.
+    /// </summary>
+    public static int ActiveConnections => _activeConnections;
+
     private readonly ILogger<RiskHub> _logger;
 
     public RiskHub(ILogger<RiskHub> logger)
@@ -18,13 +25,17 @@ public sealed class RiskHub : Hub
 
     public override Task OnConnectedAsync()
     {
-        _logger.LogInformation("Client connected: {ConnectionId}", Context.ConnectionId);
+        Interlocked.Increment(ref _activeConnections);
+        _logger.LogInformation("Client connected: {ConnectionId} (active: {Count})",
+            Context.ConnectionId, _activeConnections);
         return base.OnConnectedAsync();
     }
 
     public override Task OnDisconnectedAsync(Exception? exception)
     {
-        _logger.LogInformation("Client disconnected: {ConnectionId}", Context.ConnectionId);
+        Interlocked.Decrement(ref _activeConnections);
+        _logger.LogInformation("Client disconnected: {ConnectionId} (active: {Count})",
+            Context.ConnectionId, _activeConnections);
         return base.OnDisconnectedAsync(exception);
     }
 }

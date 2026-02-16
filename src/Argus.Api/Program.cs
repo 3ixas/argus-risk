@@ -7,10 +7,14 @@ using Argus.Domain.Models;
 using Argus.Infrastructure.Data;
 using Argus.Infrastructure.EventStore;
 using Argus.Infrastructure.Messaging;
+using Argus.Infrastructure.Telemetry;
 
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// OpenTelemetry (metrics → Prometheus, traces → Jaeger)
+builder.Services.AddArgusOpenTelemetry("argus-api", builder.Configuration);
 
 // Serialize enums as strings ("USD", "Technology") instead of integers (0, 1, 2)
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -67,7 +71,16 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
+// Observable gauge for SignalR connections (reads static counter from RiskHub)
+ArgusDiagnostics.Meter.CreateObservableGauge(
+    "argus.signalr.connections.active",
+    () => RiskHub.ActiveConnections,
+    description: "Number of active SignalR connections");
+
 app.UseCors();
+
+// Prometheus metrics scraping endpoint
+app.UseOpenTelemetryPrometheusScrapingEndpoint();
 
 // Health endpoint
 app.MapHealthChecks("/health");
