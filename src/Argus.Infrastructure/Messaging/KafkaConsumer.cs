@@ -1,12 +1,17 @@
+using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
 
 namespace Argus.Infrastructure.Messaging;
 
 /// <summary>
 /// Kafka consumer implementation using Confluent.Kafka.
 /// Deserialises JSON messages into typed objects.
+/// Extracts W3C trace context from Kafka headers for distributed tracing.
 /// </summary>
 public sealed class KafkaConsumer<TValue> : IMessageConsumer<TValue>
 {
@@ -102,12 +107,28 @@ public sealed class KafkaConsumer<TValue> : IMessageConsumer<TValue>
                 result.Offset.Value,
                 result.Message.Key);
 
+            // Extract W3C trace context from Kafka headers (if present)
+            ActivityContext? traceContext = null;
+            if (result.Message.Headers is { Count: > 0 })
+            {
+                var propagationContext = Propagators.DefaultTextMapPropagator.Extract(
+                    default,
+                    result.Message.Headers,
+                    ExtractTraceContext);
+
+                if (propagationContext.ActivityContext != default)
+                {
+                    traceContext = propagationContext.ActivityContext;
+                }
+            }
+
             return new ConsumeResult<TValue>(
                 value,
                 result.Topic,
                 result.Partition.Value,
                 result.Offset.Value,
-                result.Message.Key);
+                result.Message.Key,
+                traceContext);
         }
         catch (ConsumeException ex)
         {
@@ -135,5 +156,17 @@ public sealed class KafkaConsumer<TValue> : IMessageConsumer<TValue>
         _consumer.Close();
         _consumer.Dispose();
         _logger.LogInformation("Kafka consumer disposed");
+    }
+
+    /// <summary>
+    /// Callback for OTel propagator to read trace context from Kafka headers.
+    /// </summary>
+    private static IEnumerable<string> ExtractTraceContext(Headers headers, string key)
+    {
+        var header = headers.FirstOrDefault(h => h.Key == key);
+        if (header != null)
+        {
+            yield return Encoding.UTF8.GetString(header.GetValueBytes());
+        }
     }
 }

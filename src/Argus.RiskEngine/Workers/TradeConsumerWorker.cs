@@ -64,8 +64,11 @@ public sealed class TradeConsumerWorker : BackgroundService
 
                 var trade = result.Value;
 
-                // Trace the full processing pipeline for this trade
-                using var activity = ArgusDiagnostics.ActivitySource.StartActivity("trade.process");
+                // Trace the full processing pipeline — linked to producer span via Kafka headers
+                using var activity = ArgusDiagnostics.ActivitySource.StartActivity(
+                    "trade.process",
+                    ActivityKind.Consumer,
+                    result.TraceContext ?? default);
                 activity?.SetTag("trade.symbol", trade.Symbol);
                 activity?.SetTag("trade.side", trade.Side.ToString());
                 activity?.SetTag("trade.quantity", trade.Quantity);

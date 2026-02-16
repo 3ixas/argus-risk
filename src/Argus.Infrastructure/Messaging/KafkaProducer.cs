@@ -1,12 +1,18 @@
+using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
+using Argus.Infrastructure.Telemetry;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
 
 namespace Argus.Infrastructure.Messaging;
 
 /// <summary>
 /// Kafka producer implementation using Confluent.Kafka.
 /// Serialises messages to JSON for interoperability.
+/// Injects W3C trace context into Kafka headers for distributed tracing.
 /// </summary>
 public sealed class KafkaProducer<TValue> : IMessageProducer<TValue>, IDisposable
 {
@@ -50,12 +56,27 @@ public sealed class KafkaProducer<TValue> : IMessageProducer<TValue>, IDisposabl
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        // Start a span for the produce operation
+        using var activity = ArgusDiagnostics.ActivitySource.StartActivity(
+            $"kafka.produce {topic}", ActivityKind.Producer);
+        activity?.SetTag("messaging.system", "kafka");
+        activity?.SetTag("messaging.destination", topic);
+
         var json = JsonSerializer.Serialize(value, _jsonOptions);
         var message = new Message<string, string>
         {
             Key = key ?? Guid.NewGuid().ToString(),
-            Value = json
+            Value = json,
+            Headers = new Headers()
         };
+
+        // Inject W3C trace context into Kafka headers
+        Propagators.DefaultTextMapPropagator.Inject(
+            new PropagationContext(
+                activity?.Context ?? Activity.Current?.Context ?? default,
+                Baggage.Current),
+            message.Headers,
+            InjectTraceContext);
 
         try
         {
@@ -86,5 +107,13 @@ public sealed class KafkaProducer<TValue> : IMessageProducer<TValue>, IDisposabl
         _disposed = true;
         _producer.Dispose();
         _logger.LogInformation("Kafka producer disposed");
+    }
+
+    /// <summary>
+    /// Callback for OTel propagator to write trace context into Kafka headers.
+    /// </summary>
+    private static void InjectTraceContext(Headers headers, string key, string value)
+    {
+        headers.Add(key, Encoding.UTF8.GetBytes(value));
     }
 }
