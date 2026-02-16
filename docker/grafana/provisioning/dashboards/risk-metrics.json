@@ -5,15 +5,196 @@
   "graphTooltip": 1,
   "id": null,
   "links": [],
-  "panels": [],
+  "panels": [
+    {
+      "title": "Open Positions",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 30 }, { "color": "red", "value": 50 }] },
+          "max": 60
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        { "expr": "argus_positions_open", "legendFormat": "", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Snapshots / min",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 30 }, { "color": "green", "value": 55 }] },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": { "graphMode": "area", "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "expr": "rate(argus_risk_snapshots_published_total[1m]) * 60", "legendFormat": "", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Instruments Cached",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 25 }, { "color": "green", "value": 45 }] },
+          "max": 55
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        { "expr": "argus_market_data_instruments_cached", "legendFormat": "", "refId": "A" }
+      ]
+    },
+    {
+      "title": "FX Pairs Cached",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 2 }, { "color": "green", "value": 4 }] },
+          "max": 10
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        { "expr": "argus_market_data_fx_pairs_cached", "legendFormat": "", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Trade Volume by Direction",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "values": ["value", "percent"] }, "pieType": "donut", "reduceOptions": { "calcs": ["lastNotNull"] }, "tooltip": { "mode": "single" } },
+      "targets": [
+        { "expr": "argus_trades_by_direction_total", "legendFormat": "{{direction}}", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Trades Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 20, "gradientMode": "scheme", "pointSize": 5, "showPoints": "never" },
+          "unit": "ops",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(argus_trades_generated_total[1m])", "legendFormat": "Generated", "refId": "A" },
+        { "expr": "rate(argus_trades_processed_total[1m])", "legendFormat": "Processed", "refId": "B" }
+      ]
+    },
+    {
+      "title": "SignalR Connections",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": { "graphMode": "area", "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "expr": "argus_signalr_connections_active", "legendFormat": "", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Reconciliation Runs",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": { "graphMode": "none", "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "expr": "sum(argus_reconciliation_runs_total)", "legendFormat": "Total", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Reconciliation Results",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "fail" },
+            "properties": [{ "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }] } }]
+          }
+        ]
+      },
+      "options": { "graphMode": "none", "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "expr": "argus_reconciliation_runs_total{result=\"pass\"}", "legendFormat": "pass", "refId": "A" },
+        { "expr": "argus_reconciliation_runs_total{result=\"fail\"}", "legendFormat": "fail", "refId": "B" }
+      ]
+    },
+    {
+      "title": "Market Data Throughput",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "gradientMode": "scheme", "pointSize": 5, "showPoints": "never" },
+          "unit": "ops",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(argus_market_data_price_ticks_produced_total[1m])", "legendFormat": "Produced (Simulator)", "refId": "A" },
+        { "expr": "rate(argus_market_data_price_ticks_consumed_total[1m])", "legendFormat": "Consumed (Risk Engine)", "refId": "B" },
+        { "expr": "rate(argus_market_data_fx_rates_produced_total[1m])", "legendFormat": "FX Produced", "refId": "C" },
+        { "expr": "rate(argus_market_data_fx_rates_consumed_total[1m])", "legendFormat": "FX Consumed", "refId": "D" }
+      ]
+    }
+  ],
   "schemaVersion": 39,
   "tags": ["argus"],
   "templating": { "list": [] },
   "time": { "from": "now-15m", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Risk Metrics",
+  "title": "Argus - Risk Metrics",
   "uid": "argus-risk-metrics",
   "version": 1,
-  "refresh": "5s"
+  "refresh": "5s",
+  "style": "dark"
 }
