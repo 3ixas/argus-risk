@@ -1,5 +1,7 @@
+using System.Diagnostics.Metrics;
 using Argus.Domain.Models;
 using Argus.Infrastructure.Messaging;
+using Argus.Infrastructure.Telemetry;
 using Argus.RiskEngine.Caches;
 
 namespace Argus.RiskEngine.Workers;
@@ -11,6 +13,9 @@ namespace Argus.RiskEngine.Workers;
 public sealed class FxRateConsumerWorker : BackgroundService
 {
     private const string FxTopic = "market-data.fx";
+
+    private static readonly Counter<long> FxRatesConsumedCounter =
+        ArgusDiagnostics.Meter.CreateCounter<long>("argus.market_data.fx_rates.consumed", description: "Total FX rates consumed");
 
     private readonly IMessageConsumer<FxRate> _consumer;
     private readonly MarketDataCache _cache;
@@ -44,6 +49,7 @@ public sealed class FxRateConsumerWorker : BackgroundService
 
                 _cache.UpdateFxRate(result.Value);
                 _ratesProcessed++;
+                FxRatesConsumedCounter.Add(1);
                 _consumer.Commit();
 
                 if (_ratesProcessed % 100 == 0)
