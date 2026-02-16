@@ -1,5 +1,7 @@
+using System.Diagnostics.Metrics;
 using Argus.Domain.Models;
 using Argus.Infrastructure.Messaging;
+using Argus.Infrastructure.Telemetry;
 using Argus.MarketDataSimulator.Configuration;
 using Argus.MarketDataSimulator.Services;
 using Microsoft.Extensions.Options;
@@ -14,6 +16,12 @@ public sealed class MarketDataWorker : BackgroundService
 {
     private const string PricesTopic = "market-data.prices";
     private const string FxTopic = "market-data.fx";
+
+    private static readonly Counter<long> PriceTicksProducedCounter =
+        ArgusDiagnostics.Meter.CreateCounter<long>("argus.market_data.price_ticks.produced", description: "Total price ticks produced");
+
+    private static readonly Counter<long> FxRatesProducedCounter =
+        ArgusDiagnostics.Meter.CreateCounter<long>("argus.market_data.fx_rates.produced", description: "Total FX rates produced");
 
     private readonly PriceGenerator _priceGenerator;
     private readonly FxRateGenerator _fxGenerator;
@@ -81,6 +89,8 @@ public sealed class MarketDataWorker : BackgroundService
     {
         try
         {
+            using var activity = ArgusDiagnostics.ActivitySource.StartActivity("market_data.publish_cycle");
+
             // Generate and publish price ticks
             var ticks = _priceGenerator.GenerateNextTicks();
             foreach (var tick in ticks)
@@ -92,6 +102,7 @@ public sealed class MarketDataWorker : BackgroundService
                     cancellationToken);
             }
             _tickCount += ticks.Count;
+            PriceTicksProducedCounter.Add(ticks.Count);
 
             // Generate and publish FX rates (less frequently than prices)
             // FX every 10th tick to reduce volume
@@ -104,6 +115,7 @@ public sealed class MarketDataWorker : BackgroundService
                     await _fxProducer.ProduceAsync(FxTopic, key, rate, cancellationToken);
                 }
                 _fxUpdateCount += rates.Count;
+                FxRatesProducedCounter.Add(rates.Count);
             }
 
             // Log progress periodically (every 1000 ticks)
