@@ -1,5 +1,7 @@
+using System.Diagnostics.Metrics;
 using Argus.Domain.Models;
 using Argus.Infrastructure.Messaging;
+using Argus.Infrastructure.Telemetry;
 using Argus.RiskEngine.Caches;
 
 namespace Argus.RiskEngine.Workers;
@@ -11,6 +13,9 @@ namespace Argus.RiskEngine.Workers;
 public sealed class PriceConsumerWorker : BackgroundService
 {
     private const string PricesTopic = "market-data.prices";
+
+    private static readonly Counter<long> PriceTicksConsumedCounter =
+        ArgusDiagnostics.Meter.CreateCounter<long>("argus.market_data.price_ticks.consumed", description: "Total price ticks consumed");
 
     private readonly IMessageConsumer<PriceTick> _consumer;
     private readonly MarketDataCache _cache;
@@ -44,6 +49,7 @@ public sealed class PriceConsumerWorker : BackgroundService
 
                 _cache.UpdatePrice(result.Value);
                 _ticksProcessed++;
+                PriceTicksConsumedCounter.Add(1);
                 _consumer.Commit();
 
                 if (_ticksProcessed % 1000 == 0)

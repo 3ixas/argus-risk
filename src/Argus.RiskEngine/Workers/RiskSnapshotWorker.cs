@@ -1,6 +1,9 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using Argus.Domain.Models;
 using Argus.Domain.Services;
 using Argus.Infrastructure.Messaging;
+using Argus.Infrastructure.Telemetry;
 using Argus.RiskEngine.Caches;
 
 namespace Argus.RiskEngine.Workers;
@@ -14,6 +17,12 @@ public sealed class RiskSnapshotWorker : BackgroundService
 {
     private const string SnapshotTopic = "risk.snapshots";
     private static readonly TimeSpan SnapshotInterval = TimeSpan.FromSeconds(1);
+
+    private static readonly Counter<long> SnapshotsPublishedCounter =
+        ArgusDiagnostics.Meter.CreateCounter<long>("argus.risk.snapshots.published", description: "Total risk snapshots published");
+
+    private static readonly Histogram<double> SnapshotDuration =
+        ArgusDiagnostics.Meter.CreateHistogram<double>("argus.risk.snapshot.duration", "ms", "Snapshot build + publish latency");
 
     private readonly PositionCache _positionCache;
     private readonly MarketDataCache _marketDataCache;
@@ -48,6 +57,9 @@ public sealed class RiskSnapshotWorker : BackgroundService
         {
             try
             {
+                using var activity = ArgusDiagnostics.ActivitySource.StartActivity("risk.snapshot.cycle");
+                var sw = Stopwatch.StartNew();
+
                 var snapshot = BuildCurrentSnapshot();
 
                 if (snapshot.PositionCount > 0)
@@ -59,6 +71,12 @@ public sealed class RiskSnapshotWorker : BackgroundService
                         stoppingToken);
 
                     _snapshotsPublished++;
+                    SnapshotsPublishedCounter.Add(1);
+
+                    sw.Stop();
+                    SnapshotDuration.Record(sw.Elapsed.TotalMilliseconds);
+
+                    activity?.SetTag("snapshot.positions", snapshot.PositionCount);
 
                     if (_snapshotsPublished % 10 == 0)
                     {

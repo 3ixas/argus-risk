@@ -1,12 +1,16 @@
 using Argus.Domain.Models;
 using Argus.Infrastructure.EventStore;
 using Argus.Infrastructure.Messaging;
+using Argus.Infrastructure.Telemetry;
 using Argus.RiskEngine.Caches;
 using Argus.RiskEngine.Services;
 using Argus.RiskEngine.Workers;
 using Marten;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// OpenTelemetry (metrics → Prometheus, traces → Jaeger)
+builder.Services.AddArgusOpenTelemetry("argus-risk-engine", builder.Configuration);
 
 // Kafka configuration
 var kafkaBootstrapServers = builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:19092";
@@ -56,6 +60,28 @@ using (var scope = app.Services.CreateScope())
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("Position cache hydrated with {Count} open positions", positionCache.Count);
 }
+
+// Observable gauges — read cache sizes at scrape time
+var positionCacheForGauge = app.Services.GetRequiredService<PositionCache>();
+var marketDataCacheForGauge = app.Services.GetRequiredService<MarketDataCache>();
+
+ArgusDiagnostics.Meter.CreateObservableGauge(
+    "argus.positions.open",
+    () => positionCacheForGauge.Count,
+    description: "Number of open positions in cache");
+
+ArgusDiagnostics.Meter.CreateObservableGauge(
+    "argus.market_data.instruments_cached",
+    () => marketDataCacheForGauge.PriceCount,
+    description: "Number of instruments with cached prices");
+
+ArgusDiagnostics.Meter.CreateObservableGauge(
+    "argus.market_data.fx_pairs_cached",
+    () => marketDataCacheForGauge.FxRateCount,
+    description: "Number of FX pairs in cache");
+
+// Prometheus metrics scraping endpoint
+app.UseOpenTelemetryPrometheusScrapingEndpoint();
 
 // Health endpoint for container orchestration
 app.MapHealthChecks("/health");

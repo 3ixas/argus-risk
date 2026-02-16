@@ -1,5 +1,8 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using Argus.Domain.Models;
 using Argus.Infrastructure.Messaging;
+using Argus.Infrastructure.Telemetry;
 using Argus.RiskEngine.Services;
 
 namespace Argus.RiskEngine.Workers;
@@ -12,6 +15,15 @@ namespace Argus.RiskEngine.Workers;
 public sealed class TradeConsumerWorker : BackgroundService
 {
     private const string TradesTopic = "trades.inbound";
+
+    private static readonly Counter<long> TradesProcessedCounter =
+        ArgusDiagnostics.Meter.CreateCounter<long>("argus.trades.processed", description: "Total trades processed");
+
+    private static readonly Counter<long> TradesByDirectionCounter =
+        ArgusDiagnostics.Meter.CreateCounter<long>("argus.trades.by_direction", description: "Trades by buy/sell direction");
+
+    private static readonly Histogram<double> TradeProcessingDuration =
+        ArgusDiagnostics.Meter.CreateHistogram<double>("argus.trade.processing.duration", "ms", "Trade processing latency");
 
     private readonly IMessageConsumer<Trade> _consumer;
     private readonly IServiceScopeFactory _scopeFactory;
@@ -52,6 +64,14 @@ public sealed class TradeConsumerWorker : BackgroundService
 
                 var trade = result.Value;
 
+                // Trace the full processing pipeline for this trade
+                using var activity = ArgusDiagnostics.ActivitySource.StartActivity("trade.process");
+                activity?.SetTag("trade.symbol", trade.Symbol);
+                activity?.SetTag("trade.side", trade.Side.ToString());
+                activity?.SetTag("trade.quantity", trade.Quantity);
+
+                var sw = Stopwatch.StartNew();
+
                 // Process trade through event sourcing pipeline (scoped session)
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
@@ -59,7 +79,15 @@ public sealed class TradeConsumerWorker : BackgroundService
                     await processor.ProcessAsync(trade, stoppingToken);
                 }
 
+                sw.Stop();
+                TradeProcessingDuration.Record(sw.Elapsed.TotalMilliseconds);
+
                 _tradesProcessed++;
+                TradesProcessedCounter.Add(1);
+
+                var direction = trade.Side == Domain.Enums.TradeSide.Buy ? "buy" : "sell";
+                TradesByDirectionCounter.Add(1, new KeyValuePair<string, object?>("direction", direction));
+
                 if (trade.Side == Domain.Enums.TradeSide.Buy)
                     _buyCount++;
                 else
