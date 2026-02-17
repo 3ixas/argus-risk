@@ -5,12 +5,13 @@ using Argus.Domain.Services;
 using Argus.Infrastructure.Messaging;
 using Argus.Infrastructure.Telemetry;
 using Argus.RiskEngine.Caches;
+using Marten;
 
 namespace Argus.RiskEngine.Workers;
 
 /// <summary>
 /// Periodic worker that combines position state + market data to calculate
-/// real-time risk snapshots and publishes them to Kafka.
+/// real-time risk snapshots, publishes them to Kafka, and persists to PostgreSQL for replay.
 /// Runs on a 1-second cadence using PeriodicTimer.
 /// </summary>
 public sealed class RiskSnapshotWorker : BackgroundService
@@ -27,6 +28,7 @@ public sealed class RiskSnapshotWorker : BackgroundService
     private readonly PositionCache _positionCache;
     private readonly MarketDataCache _marketDataCache;
     private readonly IMessageProducer<RiskSnapshot> _producer;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<RiskSnapshotWorker> _logger;
 
     private long _snapshotsPublished;
@@ -35,11 +37,13 @@ public sealed class RiskSnapshotWorker : BackgroundService
         PositionCache positionCache,
         MarketDataCache marketDataCache,
         IMessageProducer<RiskSnapshot> producer,
+        IServiceScopeFactory scopeFactory,
         ILogger<RiskSnapshotWorker> logger)
     {
         _positionCache = positionCache;
         _marketDataCache = marketDataCache;
         _producer = producer;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -69,6 +73,12 @@ public sealed class RiskSnapshotWorker : BackgroundService
                         "portfolio",
                         snapshot,
                         stoppingToken);
+
+                    // Persist to PostgreSQL for historical replay
+                    await using var scope = _scopeFactory.CreateAsyncScope();
+                    var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+                    session.Store(snapshot);
+                    await session.SaveChangesAsync(stoppingToken);
 
                     _snapshotsPublished++;
                     SnapshotsPublishedCounter.Add(1);

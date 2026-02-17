@@ -9,6 +9,7 @@ public sealed class RiskSnapshotCacheTests
 {
     private static RiskSnapshot CreateSnapshot(int positionCount = 5, decimal netPnl = 1000m) =>
         new(
+            Id: Guid.NewGuid(),
             Timestamp: DateTimeOffset.UtcNow,
             Positions: [],
             TotalUnrealizedPnlUsd: netPnl * 0.6m,

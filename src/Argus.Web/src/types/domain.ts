@@ -53,6 +53,7 @@ export interface PositionRisk {
 }
 
 export interface RiskSnapshot {
+  id: string;
   timestamp: string;
   positions: PositionRisk[];
   totalUnrealizedPnlUsd: number;
