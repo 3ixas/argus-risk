@@ -77,6 +77,7 @@ public static class RiskCalculator
 
     /// <summary>
     /// Aggregates individual position risks into a portfolio-level snapshot.
+    /// Each snapshot gets a unique Id for Marten document storage.
     /// </summary>
     public static RiskSnapshot BuildSnapshot(IEnumerable<PositionRisk> positionRisks, DateTimeOffset timestamp)
     {
@@ -86,6 +87,7 @@ public static class RiskCalculator
         var totalRealizedUsd = positions.Sum(p => p.RealizedPnlUsd);
 
         return new RiskSnapshot(
+            Id: Guid.NewGuid(),
             Timestamp: timestamp,
             Positions: positions,
             TotalUnrealizedPnlUsd: totalUnrealizedUsd,
