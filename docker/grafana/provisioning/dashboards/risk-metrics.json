@@ -184,6 +184,73 @@
         { "expr": "rate(argus_market_data_fx_rates_produced_total[1m])", "legendFormat": "FX Produced", "refId": "C" },
         { "expr": "rate(argus_market_data_fx_rates_consumed_total[1m])", "legendFormat": "FX Consumed", "refId": "D" }
       ]
+    },
+    {
+      "title": "Replay Sessions",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": { "graphMode": "none", "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "expr": "sum(argus_replay_sessions_started_total)", "legendFormat": "Total", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Replay Snapshots Streamed",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": { "graphMode": "area", "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "expr": "sum(argus_replay_snapshots_streamed_total)", "legendFormat": "Total", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Replay Duration (p95)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 60 }, { "color": "red", "value": 300 }] },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": { "graphMode": "none", "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, rate(argus_replay_duration_seconds_bucket[5m]))", "legendFormat": "", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Replay Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 20, "gradientMode": "scheme", "pointSize": 5, "showPoints": "never" },
+          "unit": "ops",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "hidden" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        { "expr": "rate(argus_replay_snapshots_streamed_total[1m])", "legendFormat": "Streamed/s", "refId": "A" }
+      ]
     }
   ],
   "schemaVersion": 39,
