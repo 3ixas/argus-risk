@@ -14,6 +14,8 @@ import {
   LogLevel,
 } from "@microsoft/signalr";
 import type { RiskSnapshot } from "@/types/domain";
+import type { ReplaySpeed, ReplayState } from "@/types/replay";
+import { apiClient } from "@/lib/api-client";
 
 export type ConnectionStatus =
   | "disconnected"
@@ -32,12 +34,25 @@ interface RiskContextValue {
   snapshot: RiskSnapshot | null;
   connectionStatus: ConnectionStatus;
   pnlHistory: PnlDataPoint[];
+  // Replay state
+  isReplayMode: boolean;
+  replayStatus: ReplayState | null;
+  startReplay: (start: Date, end: Date, speed: ReplaySpeed) => Promise<void>;
+  stopReplay: () => Promise<void>;
+  pauseReplay: () => Promise<void>;
+  resumeReplay: () => Promise<void>;
 }
 
 const RiskContext = createContext<RiskContextValue>({
   snapshot: null,
   connectionStatus: "disconnected",
   pnlHistory: [],
+  isReplayMode: false,
+  replayStatus: null,
+  startReplay: async () => {},
+  stopReplay: async () => {},
+  pauseReplay: async () => {},
+  resumeReplay: async () => {},
 });
 
 export function useRisk() {
@@ -72,6 +87,10 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
     useState<ConnectionStatus>("disconnected");
   const [pnlHistory, setPnlHistory] = useState<PnlDataPoint[]>([]);
 
+  // Replay state
+  const [isReplayMode, setIsReplayMode] = useState(false);
+  const [replayStatus, setReplayStatus] = useState<ReplayState | null>(null);
+
   // Ref to track retry count across reconnection attempts
   const retryCount = useRef(0);
   const connectionRef = useRef<HubConnection | null>(null);
@@ -90,15 +109,40 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
 
     connectionRef.current = connection;
 
-    // Handle incoming risk snapshots
-    connection.on("ReceiveRiskSnapshot", (data: RiskSnapshot) => {
+    // Handle incoming risk snapshots (live data from RiskSnapshotConsumerWorker)
+    connection.on("RiskUpdated", (data: RiskSnapshot) => {
+      // Only update if NOT in replay mode
+      if (!isReplayMode) {
+        setSnapshot(data);
+        setPnlHistory((prev) =>
+          appendToHistory(prev, {
+            timestamp: Date.now(),
+            value: data.totalNetPnlUsd,
+          })
+        );
+      }
+    });
+
+    // Handle replay snapshots
+    connection.on("ReplayUpdate", (data: RiskSnapshot) => {
       setSnapshot(data);
       setPnlHistory((prev) =>
         appendToHistory(prev, {
-          timestamp: Date.now(),
+          timestamp: new Date(data.timestamp).getTime(),
           value: data.totalNetPnlUsd,
         })
       );
+    });
+
+    // Handle replay status changes
+    connection.on("ReplayStatus", (status: ReplayState) => {
+      setIsReplayMode(status.isActive);
+      setReplayStatus(status);
+
+      // Clear P&L history when starting replay
+      if (status.isActive && !replayStatus?.isActive) {
+        setPnlHistory([]);
+      }
     });
 
     // Connection lifecycle events
@@ -134,7 +178,7 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
       setConnectionStatus("disconnected");
       // Will retry via onclose handler
     }
-  }, []);
+  }, [isReplayMode, replayStatus?.isActive]);
 
   useEffect(() => {
     connect();
@@ -143,8 +187,37 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
     };
   }, [connect]);
 
+  // Replay actions
+  const startReplay = useCallback(async (start: Date, end: Date, speed: ReplaySpeed) => {
+    await apiClient.startReplay(start.toISOString(), end.toISOString(), speed);
+  }, []);
+
+  const stopReplay = useCallback(async () => {
+    await apiClient.stopReplay();
+  }, []);
+
+  const pauseReplay = useCallback(async () => {
+    await apiClient.pauseReplay();
+  }, []);
+
+  const resumeReplay = useCallback(async () => {
+    await apiClient.resumeReplay();
+  }, []);
+
   return (
-    <RiskContext.Provider value={{ snapshot, connectionStatus, pnlHistory }}>
+    <RiskContext.Provider
+      value={{
+        snapshot,
+        connectionStatus,
+        pnlHistory,
+        isReplayMode,
+        replayStatus,
+        startReplay,
+        stopReplay,
+        pauseReplay,
+        resumeReplay,
+      }}
+    >
       {children}
     </RiskContext.Provider>
   );
