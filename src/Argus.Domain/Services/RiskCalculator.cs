@@ -11,6 +11,12 @@ namespace Argus.Domain.Services;
 public static class RiskCalculator
 {
     /// <summary>
+    /// Price data older than this threshold is considered stale.
+    /// Five seconds gives market data feed a generous window while still detecting outages.
+    /// </summary>
+    public static readonly TimeSpan StalenessThreshold = TimeSpan.FromSeconds(5);
+
+    /// <summary>
     /// Weighted average cost across all cost lots.
     /// Returns 0 if lots are empty.
     /// </summary>
@@ -49,10 +55,12 @@ public static class RiskCalculator
     /// Builds a PositionRisk snapshot for a single position.
     /// Returns null if no current market price is available (position skipped in snapshot).
     /// </summary>
+    /// <param name="now">Current time used to determine if price data is stale.</param>
     public static PositionRisk? BuildPositionRisk(
         Position position,
         PriceTick? currentPrice,
-        Func<Currency, Currency, decimal> fxRateLookup)
+        Func<Currency, Currency, decimal> fxRateLookup,
+        DateTimeOffset now)
     {
         if (currentPrice == null) return null;
 
@@ -60,6 +68,9 @@ public static class RiskCalculator
         var unrealizedPnl = CalculateUnrealizedPnl(position.Quantity, avgCost, currentPrice.Price);
         var unrealizedPnlUsd = ConvertToUsd(unrealizedPnl, position.Currency, fxRateLookup);
         var realizedPnlUsd = ConvertToUsd(position.RealizedPnl, position.Currency, fxRateLookup);
+
+        var priceAge = now - currentPrice.Timestamp;
+        var isStale = priceAge > StalenessThreshold;
 
         return new PositionRisk(
             InstrumentId: position.InstrumentId,
@@ -72,12 +83,15 @@ public static class RiskCalculator
             UnrealizedPnl: unrealizedPnl,
             UnrealizedPnlUsd: unrealizedPnlUsd,
             RealizedPnl: position.RealizedPnl,
-            RealizedPnlUsd: realizedPnlUsd);
+            RealizedPnlUsd: realizedPnlUsd,
+            IsStale: isStale,
+            PriceAgeSeconds: priceAge.TotalSeconds);
     }
 
     /// <summary>
     /// Aggregates individual position risks into a portfolio-level snapshot.
     /// Each snapshot gets a unique Id for Marten document storage.
+    /// DataQuality: "Good" if 0% stale, "Degraded" if less than 25%, "Stale" if 25%+.
     /// </summary>
     public static RiskSnapshot BuildSnapshot(IEnumerable<PositionRisk> positionRisks, DateTimeOffset timestamp)
     {
@@ -85,6 +99,15 @@ public static class RiskCalculator
 
         var totalUnrealizedUsd = positions.Sum(p => p.UnrealizedPnlUsd);
         var totalRealizedUsd = positions.Sum(p => p.RealizedPnlUsd);
+        var staleCount = positions.Count(p => p.IsStale);
+
+        var dataQuality = positions.Count == 0
+            ? "Good"
+            : staleCount == 0
+                ? "Good"
+                : (double)staleCount / positions.Count < 0.25
+                    ? "Degraded"
+                    : "Stale";
 
         return new RiskSnapshot(
             Id: Guid.NewGuid(),
@@ -94,6 +117,8 @@ public static class RiskCalculator
             TotalRealizedPnlUsd: totalRealizedUsd,
             TotalNetPnlUsd: totalUnrealizedUsd + totalRealizedUsd,
             PositionCount: positions.Count,
-            OpenPositionCount: positions.Count(p => p.Quantity > 0));
+            OpenPositionCount: positions.Count(p => p.Quantity > 0),
+            StalePositionCount: staleCount,
+            DataQuality: dataQuality);
     }
 }

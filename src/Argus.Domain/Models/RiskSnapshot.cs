@@ -12,5 +12,7 @@ public sealed record RiskSnapshot(
     decimal TotalRealizedPnlUsd,
     decimal TotalNetPnlUsd,
     int PositionCount,
-    int OpenPositionCount
+    int OpenPositionCount,
+    int StalePositionCount,
+    string DataQuality
 );

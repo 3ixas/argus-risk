@@ -17,5 +17,7 @@ public sealed record PositionRisk(
     decimal UnrealizedPnl,
     decimal UnrealizedPnlUsd,
     decimal RealizedPnl,
-    decimal RealizedPnlUsd
+    decimal RealizedPnlUsd,
+    bool IsStale,
+    double PriceAgeSeconds
 );

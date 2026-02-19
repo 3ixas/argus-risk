@@ -5,6 +5,7 @@ using Argus.Api.Replay;
 using Argus.Api.Services;
 using Argus.Api.Workers;
 using Argus.Domain.Models;
+using Alert = Argus.Domain.Models.Alert;
 using Argus.Infrastructure.Data;
 using Argus.Infrastructure.EventStore;
 using Argus.Infrastructure.Messaging;
@@ -26,8 +27,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 // Kafka configuration
 var kafkaBootstrapServers = builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:19092";
 
-// Kafka consumer for risk snapshots (separate consumer group from RiskEngine)
+// Kafka consumers (separate consumer groups from RiskEngine)
 builder.Services.AddKafkaConsumer<RiskSnapshot>(kafkaBootstrapServers, "argus-api-snapshots");
+builder.Services.AddKafkaConsumer<Alert>(kafkaBootstrapServers, "argus-api-alerts");
 
 // Marten event store — shared PostgreSQL with RiskEngine (read-only for API)
 var connectionString = builder.Configuration["PostgreSQL:ConnectionString"]
@@ -37,6 +39,7 @@ builder.Services.AddMartenEventStore(connectionString);
 // Singletons
 builder.Services.AddSingleton<RiskSnapshotCache>();
 builder.Services.AddSingleton<ReconciliationCache>();
+builder.Services.AddSingleton<AlertCache>();
 builder.Services.AddSingleton<InstrumentRepository>();
 builder.Services.AddSingleton<ReplaySession>();
 
@@ -68,6 +71,7 @@ builder.Services.AddCors(options =>
 
 // Background workers
 builder.Services.AddHostedService<RiskSnapshotConsumerWorker>();
+builder.Services.AddHostedService<AlertConsumerWorker>();
 builder.Services.AddHostedService<ReplayWorker>();
 
 // Health checks
@@ -75,11 +79,17 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Observable gauge for SignalR connections (reads static counter from RiskHub)
+// Observable gauges (read at Prometheus scrape time)
 ArgusDiagnostics.Meter.CreateObservableGauge(
     "argus.signalr.connections.active",
     () => RiskHub.ActiveConnections,
     description: "Number of active SignalR connections");
+
+var alertCacheForGauge = app.Services.GetRequiredService<AlertCache>();
+ArgusDiagnostics.Meter.CreateObservableGauge(
+    "argus.api.alerts.active",
+    () => alertCacheForGauge.ActiveCount,
+    description: "Number of active (unresolved) alerts");
 
 app.UseCors();
 
@@ -110,6 +120,7 @@ app.MapInstrumentEndpoints();
 app.MapReconciliationEndpoints();
 app.MapReplayEndpoints();
 app.MapSnapshotEndpoints();
+app.MapAlertEndpoints();
 
 // SignalR hub
 app.MapHub<RiskHub>("/hubs/risk");

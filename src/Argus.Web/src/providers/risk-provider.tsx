@@ -13,7 +13,7 @@ import {
   HubConnectionBuilder,
   LogLevel,
 } from "@microsoft/signalr";
-import type { RiskSnapshot } from "@/types/domain";
+import type { Alert, RiskSnapshot } from "@/types/domain";
 import type { ReplaySpeed, ReplayState } from "@/types/replay";
 import { apiClient } from "@/lib/api-client";
 
@@ -34,6 +34,7 @@ interface RiskContextValue {
   snapshot: RiskSnapshot | null;
   connectionStatus: ConnectionStatus;
   pnlHistory: PnlDataPoint[];
+  alerts: Alert[];
   // Replay state
   isReplayMode: boolean;
   replayStatus: ReplayState | null;
@@ -47,6 +48,7 @@ const RiskContext = createContext<RiskContextValue>({
   snapshot: null,
   connectionStatus: "disconnected",
   pnlHistory: [],
+  alerts: [],
   isReplayMode: false,
   replayStatus: null,
   startReplay: async () => {},
@@ -86,6 +88,7 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
   const [pnlHistory, setPnlHistory] = useState<PnlDataPoint[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
 
   // Replay state
   const [isReplayMode, setIsReplayMode] = useState(false);
@@ -132,6 +135,23 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
           value: data.totalNetPnlUsd,
         })
       );
+    });
+
+    // Handle alert updates — mirrors AlertCache.Update logic on the backend
+    connection.on("AlertReceived", (alert: Alert) => {
+      setAlerts((prev) => {
+        const key = `${alert.type}:${alert.component}`;
+        if (alert.isResolved) {
+          return prev.filter((a) => `${a.type}:${a.component}` !== key);
+        }
+        const existing = prev.findIndex((a) => `${a.type}:${a.component}` === key);
+        if (existing >= 0) {
+          const next = [...prev];
+          next[existing] = alert;
+          return next;
+        }
+        return [alert, ...prev];
+      });
     });
 
     // Handle replay status changes
@@ -187,6 +207,11 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
     };
   }, [connect]);
 
+  // Fetch current active alerts on mount (before any SignalR events arrive)
+  useEffect(() => {
+    apiClient.getAlerts().then(setAlerts).catch(() => {});
+  }, []);
+
   // Replay actions
   const startReplay = useCallback(async (start: Date, end: Date, speed: ReplaySpeed) => {
     await apiClient.startReplay(start.toISOString(), end.toISOString(), speed);
@@ -210,6 +235,7 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
         snapshot,
         connectionStatus,
         pnlHistory,
+        alerts,
         isReplayMode,
         replayStatus,
         startReplay,

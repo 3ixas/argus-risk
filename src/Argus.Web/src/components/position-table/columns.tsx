@@ -8,10 +8,18 @@ export const columns: ColumnDef<PositionRisk>[] = [
   {
     accessorKey: "symbol",
     header: "Symbol",
-    cell: ({ getValue }) => (
-      <span className="font-medium">{getValue<string>()}</span>
+    cell: ({ row }) => (
+      <span className="flex items-center gap-1.5 font-medium">
+        {row.original.isStale && (
+          <span
+            title={`Price data is ${row.original.priceAgeSeconds.toFixed(1)}s old`}
+            className="inline-block h-2 w-2 shrink-0 rounded-full bg-yellow-400"
+          />
+        )}
+        {row.original.symbol}
+      </span>
     ),
-    size: 100,
+    size: 110,
   },
   {
     accessorKey: "side",
