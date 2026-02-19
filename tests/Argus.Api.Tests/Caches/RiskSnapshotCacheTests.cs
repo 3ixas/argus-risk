@@ -16,7 +16,9 @@ public sealed class RiskSnapshotCacheTests
             TotalRealizedPnlUsd: netPnl * 0.4m,
             TotalNetPnlUsd: netPnl,
             PositionCount: positionCount,
-            OpenPositionCount: positionCount
+            OpenPositionCount: positionCount,
+            StalePositionCount: 0,
+            DataQuality: "Good"
         );
 
     [Fact]
