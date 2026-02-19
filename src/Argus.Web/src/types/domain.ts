@@ -2,6 +2,26 @@
 
 export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "CHF";
 
+export type AlertSeverity = "Warning" | "Error";
+
+export type AlertType =
+  | "StaleData"
+  | "ReconciliationBreak"
+  | "HighLatency"
+  | "ConsumerLag"
+  | "CircuitBreakerOpen";
+
+export interface Alert {
+  id: string;
+  type: AlertType;
+  severity: AlertSeverity;
+  component: string;
+  message: string;
+  timestamp: string;
+  isResolved: boolean;
+  resolvedAt: string | null;
+}
+
 export type Sector =
   | "Technology"
   | "Healthcare"
@@ -50,6 +70,8 @@ export interface PositionRisk {
   unrealizedPnlUsd: number;
   realizedPnl: number;
   realizedPnlUsd: number;
+  isStale: boolean;
+  priceAgeSeconds: number;
 }
 
 export interface RiskSnapshot {
@@ -61,6 +83,8 @@ export interface RiskSnapshot {
   totalNetPnlUsd: number;
   positionCount: number;
   openPositionCount: number;
+  stalePositionCount: number;
+  dataQuality: string;
 }
 
 export interface PositionDiscrepancy {

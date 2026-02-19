@@ -1,7 +1,9 @@
 import { ConnectionStatus } from "@/components/connection-status";
+import { DataQualityIndicator } from "@/components/data-quality-indicator";
 import { PortfolioOverview } from "@/components/portfolio-overview";
 import { PositionTable } from "@/components/position-table";
 import { ConcentrationCharts } from "@/components/concentration-charts";
+import { AlertPanel } from "@/components/alert-panel";
 import { ReconciliationStatus } from "@/components/reconciliation-status";
 import { ReplayBanner } from "@/components/replay-banner";
 import { ReplayControls } from "@/components/replay-controls";
@@ -24,7 +26,10 @@ export default function DashboardPage() {
                 Real-time portfolio risk monitoring
               </p>
             </div>
-            <ConnectionStatus />
+            <div className="flex items-center gap-2">
+              <DataQualityIndicator />
+              <ConnectionStatus />
+            </div>
           </div>
 
         {/* Portfolio Overview Cards */}
@@ -38,6 +43,9 @@ export default function DashboardPage() {
           <ReconciliationStatus />
           <ReplayControls />
         </div>
+
+        {/* Alert Panel */}
+        <AlertPanel />
 
         {/* Positions Grid */}
         <section>

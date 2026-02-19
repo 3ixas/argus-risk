@@ -1,4 +1,5 @@
 import type {
+  Alert,
   Instrument,
   Position,
   ReconciliationReport,
@@ -54,6 +55,8 @@ export const apiClient = {
     if (!res.ok) throw new Error(`API ${res.status}: /api/reconciliation/latest`);
     return res.json() as Promise<ReconciliationReport>;
   },
+
+  getAlerts: () => fetchJson<Alert[]>("/api/alerts"),
 
   // Replay API
   startReplay: (startTime: string, endTime: string, speed: ReplaySpeed) =>
