@@ -36,6 +36,13 @@ rpk topic create risk.snapshots \
   --topic-config cleanup.policy=compact \
   || echo "Topic risk.snapshots may already exist"
 
+rpk topic create risk.alerts \
+  --brokers "$BROKER" \
+  --partitions 3 \
+  --topic-config retention.ms=86400000 \
+  --topic-config cleanup.policy=delete \
+  || echo "Topic risk.alerts may already exist"
+
 echo ""
 echo "Topics created:"
 rpk topic list --brokers "$BROKER"

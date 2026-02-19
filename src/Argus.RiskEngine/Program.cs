@@ -6,6 +6,7 @@ using Argus.RiskEngine.Caches;
 using Argus.RiskEngine.Services;
 using Argus.RiskEngine.Workers;
 using Marten;
+using AlertPublisher = Argus.RiskEngine.Services.AlertPublisher;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,8 +21,9 @@ builder.Services.AddKafkaConsumer<Trade>(kafkaBootstrapServers, "argus-risk-engi
 builder.Services.AddKafkaConsumer<PriceTick>(kafkaBootstrapServers, "argus-risk-engine-prices");
 builder.Services.AddKafkaConsumer<FxRate>(kafkaBootstrapServers, "argus-risk-engine-fx");
 
-// Kafka producer for risk snapshots
+// Kafka producers
 builder.Services.AddKafkaProducer<RiskSnapshot>(kafkaBootstrapServers);
+builder.Services.AddKafkaProducer<Alert>(kafkaBootstrapServers);
 
 // Marten event store (PostgreSQL)
 var connectionString = builder.Configuration["PostgreSQL:ConnectionString"]
@@ -31,6 +33,9 @@ builder.Services.AddMartenEventStore(connectionString);
 // In-memory caches (singletons — shared across all workers)
 builder.Services.AddSingleton<MarketDataCache>();
 builder.Services.AddSingleton<PositionCache>();
+
+// Alert publisher (singleton — owns deduplication window)
+builder.Services.AddSingleton<AlertPublisher>();
 
 // Trade processing (scoped — one per trade)
 builder.Services.AddScoped<TradeProcessor>();
