@@ -112,7 +112,7 @@ public sealed class RiskCalculatorTests
     {
         var position = CreatePosition(100, 50.00m, Currency.USD);
 
-        RiskCalculator.BuildPositionRisk(position, null, (_, _) => 1m).Should().BeNull();
+        RiskCalculator.BuildPositionRisk(position, null, (_, _) => 1m, Now).Should().BeNull();
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class RiskCalculatorTests
         var position = CreatePosition(100, 50.00m, Currency.USD);
         var price = new PriceTick(InstrumentId, "AAPL", 55.00m, Currency.USD, Now);
 
-        var risk = RiskCalculator.BuildPositionRisk(position, price, (_, _) => 1m);
+        var risk = RiskCalculator.BuildPositionRisk(position, price, (_, _) => 1m, Now);
 
         risk.Should().NotBeNull();
         risk!.InstrumentId.Should().Be(InstrumentId);
@@ -141,11 +141,54 @@ public sealed class RiskCalculatorTests
         var price = new PriceTick(InstrumentId, "SAP", 55.00m, Currency.EUR, Now);
 
         // EUR/USD = 1.10
-        var risk = RiskCalculator.BuildPositionRisk(position, price, (_, _) => 1.10m);
+        var risk = RiskCalculator.BuildPositionRisk(position, price, (_, _) => 1.10m, Now);
 
         risk.Should().NotBeNull();
         risk!.UnrealizedPnl.Should().Be(500.00m);       // 500 EUR
         risk.UnrealizedPnlUsd.Should().Be(550.00m);     // 500 × 1.10
+    }
+
+    // --- BuildPositionRisk: Staleness ---
+
+    [Fact]
+    public void BuildPositionRisk_FreshPrice_IsNotStale()
+    {
+        var position = CreatePosition(100, 50.00m, Currency.USD);
+        var priceTime = Now.AddSeconds(-2); // 2 seconds old — within 5s threshold
+        var price = new PriceTick(InstrumentId, "AAPL", 55.00m, Currency.USD, priceTime);
+
+        var risk = RiskCalculator.BuildPositionRisk(position, price, (_, _) => 1m, Now);
+
+        risk.Should().NotBeNull();
+        risk!.IsStale.Should().BeFalse();
+        risk.PriceAgeSeconds.Should().BeApproximately(2.0, 0.1);
+    }
+
+    [Fact]
+    public void BuildPositionRisk_OldPrice_IsStale()
+    {
+        var position = CreatePosition(100, 50.00m, Currency.USD);
+        var priceTime = Now.AddSeconds(-10); // 10 seconds old — exceeds 5s threshold
+        var price = new PriceTick(InstrumentId, "AAPL", 55.00m, Currency.USD, priceTime);
+
+        var risk = RiskCalculator.BuildPositionRisk(position, price, (_, _) => 1m, Now);
+
+        risk.Should().NotBeNull();
+        risk!.IsStale.Should().BeTrue();
+        risk.PriceAgeSeconds.Should().BeApproximately(10.0, 0.1);
+    }
+
+    [Fact]
+    public void BuildPositionRisk_PriceExactlyAtThreshold_IsNotStale()
+    {
+        // Boundary: exactly at threshold is NOT stale (> not >=)
+        var position = CreatePosition(100, 50.00m, Currency.USD);
+        var priceTime = Now - RiskCalculator.StalenessThreshold;
+        var price = new PriceTick(InstrumentId, "AAPL", 55.00m, Currency.USD, priceTime);
+
+        var risk = RiskCalculator.BuildPositionRisk(position, price, (_, _) => 1m, Now);
+
+        risk!.IsStale.Should().BeFalse();
     }
 
     // --- BuildSnapshot ---
@@ -156,9 +199,9 @@ public sealed class RiskCalculatorTests
         var risks = new List<PositionRisk>
         {
             new(Guid.NewGuid(), "AAPL", Currency.USD, TradeSide.Buy, 100,
-                50m, 55m, 500m, 500m, 100m, 100m),
+                50m, 55m, 500m, 500m, 100m, 100m, false, 1.0),
             new(Guid.NewGuid(), "MSFT", Currency.USD, TradeSide.Buy, 50,
-                200m, 210m, 500m, 500m, -50m, -50m),
+                200m, 210m, 500m, 500m, -50m, -50m, false, 1.0),
         };
 
         var snapshot = RiskCalculator.BuildSnapshot(risks, Now);
@@ -180,9 +223,65 @@ public sealed class RiskCalculatorTests
         snapshot.TotalNetPnlUsd.Should().Be(0m);
         snapshot.PositionCount.Should().Be(0);
         snapshot.OpenPositionCount.Should().Be(0);
+        snapshot.StalePositionCount.Should().Be(0);
+        snapshot.DataQuality.Should().Be("Good");
     }
 
-    // --- Helper: create a Position by replaying a PositionOpened event ---
+    [Fact]
+    public void BuildSnapshot_AllFreshPrices_DataQualityGood()
+    {
+        var risks = new List<PositionRisk>
+        {
+            MakeRisk(isStale: false),
+            MakeRisk(isStale: false),
+            MakeRisk(isStale: false),
+            MakeRisk(isStale: false),
+        };
+
+        var snapshot = RiskCalculator.BuildSnapshot(risks, Now);
+
+        snapshot.StalePositionCount.Should().Be(0);
+        snapshot.DataQuality.Should().Be("Good");
+    }
+
+    [Fact]
+    public void BuildSnapshot_SomeStalePrices_DataQualityDegraded()
+    {
+        // 1 of 5 = 20% stale → Degraded (< 25%)
+        var risks = new List<PositionRisk>
+        {
+            MakeRisk(isStale: true),
+            MakeRisk(isStale: false),
+            MakeRisk(isStale: false),
+            MakeRisk(isStale: false),
+            MakeRisk(isStale: false),
+        };
+
+        var snapshot = RiskCalculator.BuildSnapshot(risks, Now);
+
+        snapshot.StalePositionCount.Should().Be(1);
+        snapshot.DataQuality.Should().Be("Degraded");
+    }
+
+    [Fact]
+    public void BuildSnapshot_MostlyStale_DataQualityStale()
+    {
+        // 2 of 4 = 50% stale → Stale (>= 25%)
+        var risks = new List<PositionRisk>
+        {
+            MakeRisk(isStale: true),
+            MakeRisk(isStale: true),
+            MakeRisk(isStale: false),
+            MakeRisk(isStale: false),
+        };
+
+        var snapshot = RiskCalculator.BuildSnapshot(risks, Now);
+
+        snapshot.StalePositionCount.Should().Be(2);
+        snapshot.DataQuality.Should().Be("Stale");
+    }
+
+    // --- Helpers ---
 
     private static Position CreatePosition(int quantity, decimal price, Currency currency)
     {
@@ -192,4 +291,8 @@ public sealed class RiskCalculatorTests
         position.Apply(opened);
         return position;
     }
+
+    private static PositionRisk MakeRisk(bool isStale) =>
+        new(Guid.NewGuid(), "AAPL", Currency.USD, TradeSide.Buy, 100,
+            50m, 55m, 500m, 500m, 0m, 0m, isStale, isStale ? 10.0 : 1.0);
 }
