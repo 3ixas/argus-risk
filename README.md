@@ -9,18 +9,22 @@
 
 Argus demonstrates production-grade financial systems engineering:
 
-- **Event Sourcing** — Full audit trail with point-in-time reconstruction
-- **Streaming Architecture** — Kafka-based real-time data flow
+- **Event Sourcing** — Full audit trail with point-in-time reconstruction via Marten
+- **Streaming Architecture** — Kafka-based real-time data flow across all services
 - **Sub-Second Latency** — Target p99 < 500ms from price change to dashboard
-- **Observability** — Metrics, structured logging, and Grafana dashboards
+- **Observability** — OpenTelemetry traces, Prometheus metrics, and Grafana dashboards
+- **Fault Tolerance** — Circuit breakers, staleness detection, and alert deduplication
+- **Replay Mode** — Scrub through historical portfolio state at 1x/5x/10x/60x speed
 
 ### Features
 
-- **Real-time P&L** — Unrealised, realised, and total P&L with live updates
+- **Real-time P&L** — Unrealised, realised, and total P&L with live SignalR updates
 - **Multi-Currency** — USD, EUR, GBP, JPY, CHF positions with automatic FX conversion
-- **Concentration Analysis** — Exposure by sector, currency, and instrument
-- **Time Travel** — Replay historical state, query any point-in-time
-- **Correctness Guarantees** — Checksums and reconciliation verification
+- **Concentration Analysis** — Exposure breakdown by sector, currency, and instrument
+- **Time Travel** — Replay historical state and query any point-in-time snapshot
+- **Correctness Guarantees** — SHA-256 checksums and full reconciliation verification
+- **Alerting** — Kafka-based alert pipeline with deduplication and resolution tracking
+- **Observability** — Distributed tracing, 16 custom metrics, pre-built Grafana dashboards
 
 ## Architecture
 
@@ -47,15 +51,17 @@ Argus demonstrates production-grade financial systems engineering:
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+**Data flow:** Market data and trades enter via Kafka topics → the Risk Engine aggregates positions using FIFO cost basis → snapshots are published back to Kafka and persisted to PostgreSQL → the API broadcasts updates over SignalR → the dashboard renders live.
+
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
 | **Core Engine** | C# / .NET 8 |
-| **Event Store** | Marten (PostgreSQL) |
+| **Event Store** | Marten 7.x (PostgreSQL) |
 | **Messaging** | Redpanda (Kafka-compatible) |
-| **Real-time API** | SignalR |
-| **Observability** | OpenTelemetry, Prometheus, Grafana |
+| **Real-time API** | ASP.NET Core Minimal APIs + SignalR |
+| **Observability** | OpenTelemetry, Prometheus, Grafana, Jaeger |
 | **Frontend** | Next.js 14, TypeScript, Tailwind CSS |
 | **UI Components** | shadcn/ui, Recharts, TanStack Table |
 
@@ -63,59 +69,183 @@ Argus demonstrates production-grade financial systems engineering:
 
 ### Prerequisites
 
-- [Docker Desktop](https://docker.com/products/docker-desktop) (4.25+)
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Node.js 20 LTS (for frontend, coming soon)
+- [Docker Desktop](https://docker.com/products/docker-desktop) 4.25+
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (for local development)
+- [Node.js 20 LTS](https://nodejs.org/) (for local frontend development)
 
-### 1. Start Infrastructure
+### Single-Command Start
 
 ```bash
-# Clone repository
 git clone https://github.com/3ixas/argus-risk.git
-cd argus-risk
-
-# Start Redpanda and PostgreSQL
-cd docker
-docker compose up -d
-
-# Create Kafka topics
-cd ..
-./scripts/create-topics.sh
+cd argus-risk/docker
+docker compose up
 ```
 
-### 2. Run the Market Data Simulator
+Open **http://localhost:3000** — the full stack starts automatically, including topic creation, simulators, risk engine, API, and dashboard.
 
-```bash
-dotnet run --project src/Argus.MarketDataSimulator
-```
-
-### 3. Verify It's Working
-
-```bash
-# Check health endpoint
-curl http://localhost:5001/health
-
-# View messages in Kafka (in another terminal)
-docker exec argus-redpanda rpk topic consume market-data.prices --num 5
-```
+> First run takes ~2 minutes as Docker pulls images. Subsequent starts are ~10 seconds.
 
 ### Access Points
 
-| Service | URL |
-|---------|-----|
-| **Market Data Simulator** | http://localhost:5001 |
-| **Redpanda Console** | http://localhost:8080 |
-| **PostgreSQL** | localhost:5432 (argus/argus) |
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Dashboard** | http://localhost:3000 | Next.js frontend |
+| **API** | http://localhost:5050 | REST + SignalR hub |
+| **Market Data Simulator** | http://localhost:5001/health | Health + metrics |
+| **Trade Simulator** | http://localhost:5002/health | Health + metrics |
+| **Risk Engine** | http://localhost:5003/health | Health + metrics |
+| **Redpanda Console** | http://localhost:8080 | Kafka topic browser |
+| **Grafana** | http://localhost:3001 | Pre-built dashboards |
+| **Prometheus** | http://localhost:9090 | Metrics + query UI |
+| **Jaeger** | http://localhost:16686 | Distributed traces |
+| **PostgreSQL** | localhost:5432 | argus/argus |
+
+## API Reference
+
+Base URL: `http://localhost:5050`
+
+### Positions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/positions` | All open positions |
+| `GET` | `/api/positions/{instrumentId}` | Single position by instrument GUID |
+
+### Risk
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/risk/snapshot` | Latest aggregated risk snapshot |
+
+### Instruments
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/instruments` | All instruments (reference data) |
+
+### Snapshots
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/snapshots?from=&to=` | Historical snapshots in time range (max 1 hour) |
+| `GET` | `/api/snapshots/count` | Total persisted snapshot count |
+
+### Alerts
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/alerts` | Active (unresolved) alerts |
+| `GET` | `/api/alerts/count` | Active alert count |
+
+### Reconciliation
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/reconciliation/run` | Run full event replay reconciliation |
+| `GET` | `/api/reconciliation/latest` | Latest reconciliation report |
+
+### Replay
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/replay/start` | Start replay — body: `{ startTime, endTime, speed }` |
+| `POST` | `/api/replay/stop` | Stop active replay session |
+| `POST` | `/api/replay/pause` | Pause replay |
+| `POST` | `/api/replay/resume` | Resume paused replay |
+| `GET` | `/api/replay/status` | Current replay state |
+| `GET` | `/api/replay/available-range` | Earliest and latest snapshot timestamps |
+
+### SignalR Hub
+
+Connect to `/hubs/risk` for real-time push events:
+
+| Event | Description |
+|-------|-------------|
+| `RiskUpdated` | Live risk snapshot (1Hz) |
+| `ReplayUpdate` | Historical snapshot during replay |
+| `AlertReceived` | New or resolved alert |
+
+## Project Structure
+
+```
+argus-risk/
+├── src/
+│   ├── Argus.Domain/                # Shared models, events, enums
+│   ├── Argus.Infrastructure/        # Kafka producer/consumer, Marten setup
+│   ├── Argus.MarketDataSimulator/   # GBM price + FX generation (100+ msg/s)
+│   ├── Argus.TradeSimulator/        # Trade generation with Kafka consumer
+│   ├── Argus.RiskEngine/            # FIFO P&L, multi-currency aggregation
+│   ├── Argus.Api/                   # Minimal APIs + SignalR hub
+│   └── Argus.Web/                   # Next.js 14 dashboard
+├── tests/
+│   ├── Argus.RiskEngine.Tests/      # Unit tests (63 tests)
+│   └── Argus.Api.Tests/             # API unit tests (39 tests)
+├── docker/
+│   ├── docker-compose.yml           # Full stack (12 services)
+│   ├── dotnet.Dockerfile            # Multi-stage build for all .NET services
+│   ├── web.Dockerfile               # Next.js standalone build
+│   ├── grafana/                     # Pre-provisioned dashboards
+│   └── prometheus/                  # Scrape config
+├── docs/
+│   └── project-spec.md              # Full feature requirements
+└── scripts/
+    └── seed-data.sql                # Reference instrument data
+```
+
+## Development
+
+### Running Tests
+
+```bash
+# All tests (134 total)
+dotnet test
+
+# With output
+dotnet test --logger "console;verbosity=normal"
+```
+
+### Useful Commands
+
+```bash
+# Build solution
+dotnet build
+
+# View Kafka topics
+docker exec argus-redpanda rpk topic list
+
+# Consume price messages
+docker exec argus-redpanda rpk topic consume market-data.prices --num 10
+
+# Check consumer group lag
+docker exec argus-redpanda rpk group describe argus-risk-engine
+
+# Rebuild a single service
+docker compose -f docker/docker-compose.yml up -d --build argus-risk-engine
+
+# Reset everything (clears volumes)
+docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up
+```
+
+### Frontend Development
+
+```bash
+cd src/Argus.Web
+npm install
+npm run dev   # http://localhost:3000
+```
+
+## Observability
+
+Grafana at **http://localhost:3001** includes two pre-built dashboards:
+
+- **Risk Metrics** — P&L throughput, position counts, snapshot latency, replay sessions, fault handling (active alerts, circuit breaker state, stale positions)
+- **System Health** — Service health, Kafka lag, HTTP request rates across all services
+
+Jaeger at **http://localhost:16686** shows distributed traces with W3C `traceparent` propagation across Kafka message boundaries.
 
 ## Configuration
 
-Copy `.env.example` to `.env` and configure:
-
-```bash
-cp .env.example .env
-```
-
-Key settings in `appsettings.json`:
+Key settings in `appsettings.json` (overridable via environment variables):
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -125,55 +255,6 @@ Key settings in `appsettings.json`:
 | `Simulator:SectorCorrelation` | Correlation within sectors (0-1) | 0.6 |
 | `Simulator:StressedMode` | Enable high volatility mode | false |
 
-## Development
-
-### Useful Commands
-
-```bash
-# Build solution
-dotnet build
-
-# Run tests
-dotnet test
-
-# View Kafka topics
-docker exec argus-redpanda rpk topic list
-
-# Consume price messages
-docker exec argus-redpanda rpk topic consume market-data.prices --num 10
-
-# Consume FX messages
-docker exec argus-redpanda rpk topic consume market-data.fx --num 5
-
-# Reset infrastructure
-cd docker && docker compose down -v && docker compose up -d
-```
-
-## Project Structure
-
-```
-argus-risk/
-├── src/
-│   ├── Argus.Domain/                # Shared models, events, enums
-│   ├── Argus.Infrastructure/        # Kafka producer, utilities
-│   └── Argus.MarketDataSimulator/   # Price/FX data generation
-├── docker/
-│   └── docker-compose.yml           # Redpanda + PostgreSQL
-├── scripts/
-│   └── create-topics.sh             # Kafka topic setup
-└── docs/
-    └── project-spec.md              # Full requirements
-```
-
-## Roadmap
-
-- [x] **Phase 1**: Foundation — Solution structure, Docker infrastructure
-- [x] **Feature 1**: Market Data Simulator — GBM price generation, sector correlation
-- [ ] **Feature 2**: Trade Ingestion — Kafka consumer, Marten event sourcing
-- [ ] **Feature 3**: Risk Engine — P&L calculation, multi-currency aggregation
-- [ ] **Feature 4**: REST API — Endpoints + SignalR real-time hub
-- [ ] **Feature 5**: Dashboard — Next.js with live updates
-
 ## Performance Targets
 
 | Metric | Target |
@@ -182,6 +263,30 @@ argus-risk/
 | Market data throughput | 100+ msg/s |
 | End-to-end latency (p99) | < 500ms |
 | Risk engine latency (p99) | < 100ms |
+
+## Roadmap
+
+### Version 1 (Complete)
+
+- [x] **Phase 1**: Solution structure + Docker infrastructure
+- [x] **Feature 1**: Market Data Simulator — GBM price generation, sector correlation
+- [x] **Feature 2**: Trade Ingestion — Kafka consumer, FIFO cost basis, Marten event sourcing
+- [x] **Feature 3**: Risk Engine — P&L calculation, multi-currency aggregation, 1Hz snapshots
+- [x] **Feature 4**: REST API — 16 endpoints + SignalR real-time hub
+- [x] **Feature 5**: Dashboard — Next.js with live updates, virtualised table, Recharts
+- [x] **Feature 6**: Full Dockerization — single `docker compose up` experience
+- [x] **Feature 7**: Correctness & Reconciliation — SHA-256 checksums, event replay verification
+- [x] **Feature 8**: Observability — OpenTelemetry, 16 custom metrics, Grafana dashboards
+- [x] **Feature 9**: Replay Mode — historical playback at 1x/5x/10x/60x
+- [x] **Feature 10**: Fault Handling & Alerting — circuit breakers, staleness detection, alert pipeline
+
+### Version 2 (Ideas)
+
+- [ ] Options Greeks — Delta, Gamma, Vega risk on derivatives
+- [ ] VaR / CVaR — Historical simulation and Monte Carlo Value-at-Risk
+- [ ] Order Book Simulation — Limit order book with bid-ask dynamics
+- [ ] Multi-Portfolio — Separate books with cross-portfolio netting
+- [ ] Stress Testing — Scenario analysis with user-defined shocks
 
 ---
 
