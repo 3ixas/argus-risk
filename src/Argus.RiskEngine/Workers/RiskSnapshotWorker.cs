@@ -177,7 +177,8 @@ public sealed class RiskSnapshotWorker : BackgroundService
                 p,
                 _marketDataCache.TryGetPrice(p.InstrumentId),
                 _marketDataCache.GetFxRate,
-                now))
+                now,
+                _marketDataCache.TryGetPriceHistory(p.InstrumentId)))
             .Where(r => r != null)
             .Cast<PositionRisk>()
             .ToList();
