@@ -18,7 +18,11 @@ public sealed class RiskSnapshotCacheTests
             PositionCount: positionCount,
             OpenPositionCount: positionCount,
             StalePositionCount: 0,
-            DataQuality: "Good"
+            DataQuality: "Good",
+            PortfolioParametricVaR95: null,
+            PortfolioParametricVaR99: null,
+            PortfolioHistoricalVaR95: null,
+            PortfolioHistoricalVaR99: null
         );
 
     [Fact]

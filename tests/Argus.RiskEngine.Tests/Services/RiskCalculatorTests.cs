@@ -199,9 +199,9 @@ public sealed class RiskCalculatorTests
         var risks = new List<PositionRisk>
         {
             new(Guid.NewGuid(), "AAPL", Currency.USD, TradeSide.Buy, 100,
-                50m, 55m, 500m, 500m, 100m, 100m, false, 1.0),
+                50m, 55m, 500m, 500m, 100m, 100m, false, 1.0, null, null, null, null),
             new(Guid.NewGuid(), "MSFT", Currency.USD, TradeSide.Buy, 50,
-                200m, 210m, 500m, 500m, -50m, -50m, false, 1.0),
+                200m, 210m, 500m, 500m, -50m, -50m, false, 1.0, null, null, null, null),
         };
 
         var snapshot = RiskCalculator.BuildSnapshot(risks, Now);
@@ -294,5 +294,5 @@ public sealed class RiskCalculatorTests
 
     private static PositionRisk MakeRisk(bool isStale) =>
         new(Guid.NewGuid(), "AAPL", Currency.USD, TradeSide.Buy, 100,
-            50m, 55m, 500m, 500m, 0m, 0m, isStale, isStale ? 10.0 : 1.0);
+            50m, 55m, 500m, 500m, 0m, 0m, isStale, isStale ? 10.0 : 1.0, null, null, null, null);
 }
