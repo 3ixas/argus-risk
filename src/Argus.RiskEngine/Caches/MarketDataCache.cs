@@ -5,7 +5,7 @@ using Argus.Domain.Models;
 namespace Argus.RiskEngine.Caches;
 
 /// <summary>
-/// Thread-safe in-memory store for latest market prices and FX rates.
+/// Thread-safe in-memory store for latest market prices, FX rates, and price history.
 /// Updated by PriceConsumerWorker and FxRateConsumerWorker.
 /// Read by RiskSnapshotWorker for risk calculations.
 /// Registered as a singleton.
@@ -15,7 +15,24 @@ public sealed class MarketDataCache
     private readonly ConcurrentDictionary<Guid, PriceTick> _prices = new();
     private readonly ConcurrentDictionary<(Currency Base, Currency Quote), FxRate> _fxRates = new();
 
-    public void UpdatePrice(PriceTick tick) => _prices[tick.InstrumentId] = tick;
+    // Rolling price history for VaR calculation: max 252 entries (1 trading year)
+    private readonly ConcurrentDictionary<Guid, List<decimal>> _priceHistory = new();
+    private readonly ConcurrentDictionary<Guid, object> _historyLocks = new();
+    private const int MaxHistoryLength = 252;
+
+    public void UpdatePrice(PriceTick tick)
+    {
+        _prices[tick.InstrumentId] = tick;
+
+        var lockObj = _historyLocks.GetOrAdd(tick.InstrumentId, _ => new object());
+        lock (lockObj)
+        {
+            var history = _priceHistory.GetOrAdd(tick.InstrumentId, _ => new List<decimal>());
+            history.Add(tick.Price);
+            if (history.Count > MaxHistoryLength)
+                history.RemoveAt(0);
+        }
+    }
 
     public void UpdateFxRate(FxRate rate) => _fxRates[(rate.BaseCurrency, rate.QuoteCurrency)] = rate;
 
@@ -39,6 +56,22 @@ public sealed class MarketDataCache
             return 1m / inverse.Rate;
 
         return 0m;
+    }
+
+    /// <summary>
+    /// Returns a snapshot copy of the price history for the given instrument.
+    /// Returns null if no history has been recorded yet.
+    /// Returns a copy to prevent callers mutating the internal buffer.
+    /// </summary>
+    public IReadOnlyList<decimal>? TryGetPriceHistory(Guid instrumentId)
+    {
+        if (!_priceHistory.TryGetValue(instrumentId, out var history)) return null;
+
+        var lockObj = _historyLocks.GetOrAdd(instrumentId, _ => new object());
+        lock (lockObj)
+        {
+            return history.ToList();
+        }
     }
 
     public int PriceCount => _prices.Count;

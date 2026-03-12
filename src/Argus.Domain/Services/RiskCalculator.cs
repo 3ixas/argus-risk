@@ -56,11 +56,14 @@ public static class RiskCalculator
     /// Returns null if no current market price is available (position skipped in snapshot).
     /// </summary>
     /// <param name="now">Current time used to determine if price data is stale.</param>
+    /// <param name="priceHistory">Optional price series for VaR calculation (oldest → newest).
+    /// Pass null (or fewer than 30 prices) to omit VaR — fields will be null in the output.</param>
     public static PositionRisk? BuildPositionRisk(
         Position position,
         PriceTick? currentPrice,
         Func<Currency, Currency, decimal> fxRateLookup,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        IReadOnlyList<decimal>? priceHistory = null)
     {
         if (currentPrice == null) return null;
 
@@ -71,6 +74,17 @@ public static class RiskCalculator
 
         var priceAge = now - currentPrice.Timestamp;
         var isStale = priceAge > StalenessThreshold;
+
+        // VaR uses absolute position value in USD — direction-agnostic loss metric
+        var positionValueUsd = Math.Abs(ConvertToUsd(
+            currentPrice.Price * Math.Abs(position.Quantity),
+            position.Currency,
+            fxRateLookup));
+
+        var parametricVaR95 = VaRCalculator.CalculateParametric(priceHistory!, positionValueUsd, 1.645);
+        var parametricVaR99 = VaRCalculator.CalculateParametric(priceHistory!, positionValueUsd, 2.326);
+        var historicalVaR95 = VaRCalculator.CalculateHistorical(priceHistory!, positionValueUsd, 0.05);
+        var historicalVaR99 = VaRCalculator.CalculateHistorical(priceHistory!, positionValueUsd, 0.01);
 
         return new PositionRisk(
             InstrumentId: position.InstrumentId,
@@ -85,13 +99,20 @@ public static class RiskCalculator
             RealizedPnl: position.RealizedPnl,
             RealizedPnlUsd: realizedPnlUsd,
             IsStale: isStale,
-            PriceAgeSeconds: priceAge.TotalSeconds);
+            PriceAgeSeconds: priceAge.TotalSeconds,
+            ParametricVaR95: parametricVaR95,
+            ParametricVaR99: parametricVaR99,
+            HistoricalVaR95: historicalVaR95,
+            HistoricalVaR99: historicalVaR99);
     }
 
     /// <summary>
     /// Aggregates individual position risks into a portfolio-level snapshot.
     /// Each snapshot gets a unique Id for Marten document storage.
     /// DataQuality: "Good" if 0% stale, "Degraded" if less than 25%, "Stale" if 25%+.
+    ///
+    /// Portfolio VaR is the undiversified sum of individual position VaRs.
+    /// A null portfolio VaR means no positions have sufficient price history yet.
     /// </summary>
     public static RiskSnapshot BuildSnapshot(IEnumerable<PositionRisk> positionRisks, DateTimeOffset timestamp)
     {
@@ -109,6 +130,20 @@ public static class RiskCalculator
                     ? "Degraded"
                     : "Stale";
 
+        // Sum VaRs across positions — null if no position has sufficient history
+        var portfolioParamVaR95 = positions.Any(p => p.ParametricVaR95.HasValue)
+            ? positions.Sum(p => p.ParametricVaR95 ?? 0m)
+            : (decimal?)null;
+        var portfolioParamVaR99 = positions.Any(p => p.ParametricVaR99.HasValue)
+            ? positions.Sum(p => p.ParametricVaR99 ?? 0m)
+            : (decimal?)null;
+        var portfolioHistVaR95 = positions.Any(p => p.HistoricalVaR95.HasValue)
+            ? positions.Sum(p => p.HistoricalVaR95 ?? 0m)
+            : (decimal?)null;
+        var portfolioHistVaR99 = positions.Any(p => p.HistoricalVaR99.HasValue)
+            ? positions.Sum(p => p.HistoricalVaR99 ?? 0m)
+            : (decimal?)null;
+
         return new RiskSnapshot(
             Id: Guid.NewGuid(),
             Timestamp: timestamp,
@@ -119,6 +154,10 @@ public static class RiskCalculator
             PositionCount: positions.Count,
             OpenPositionCount: positions.Count(p => p.Quantity > 0),
             StalePositionCount: staleCount,
-            DataQuality: dataQuality);
+            DataQuality: dataQuality,
+            PortfolioParametricVaR95: portfolioParamVaR95,
+            PortfolioParametricVaR99: portfolioParamVaR99,
+            PortfolioHistoricalVaR95: portfolioHistVaR95,
+            PortfolioHistoricalVaR99: portfolioHistVaR99);
     }
 }

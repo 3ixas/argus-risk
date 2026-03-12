@@ -14,5 +14,9 @@ public sealed record RiskSnapshot(
     int PositionCount,
     int OpenPositionCount,
     int StalePositionCount,
-    string DataQuality
+    string DataQuality,
+    decimal? PortfolioParametricVaR95,
+    decimal? PortfolioParametricVaR99,
+    decimal? PortfolioHistoricalVaR95,
+    decimal? PortfolioHistoricalVaR99
 );

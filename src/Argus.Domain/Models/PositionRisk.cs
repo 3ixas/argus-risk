@@ -19,5 +19,9 @@ public sealed record PositionRisk(
     decimal RealizedPnl,
     decimal RealizedPnlUsd,
     bool IsStale,
-    double PriceAgeSeconds
+    double PriceAgeSeconds,
+    decimal? ParametricVaR95,
+    decimal? ParametricVaR99,
+    decimal? HistoricalVaR95,
+    decimal? HistoricalVaR99
 );
