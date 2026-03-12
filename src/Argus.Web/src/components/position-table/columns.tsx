@@ -103,6 +103,32 @@ export const columns: ColumnDef<PositionRisk>[] = [
     size: 90,
   },
   {
+    accessorKey: "parametricVaR95",
+    header: "VaR 95% (P)",
+    cell: ({ getValue }) => {
+      const val = getValue<number | undefined>();
+      return (
+        <span className="tabular-nums text-muted-foreground">
+          {val != null ? formatCurrency(val) : "—"}
+        </span>
+      );
+    },
+    size: 110,
+  },
+  {
+    accessorKey: "historicalVaR95",
+    header: "VaR 95% (H)",
+    cell: ({ getValue }) => {
+      const val = getValue<number | undefined>();
+      return (
+        <span className="tabular-nums text-muted-foreground">
+          {val != null ? formatCurrency(val) : "—"}
+        </span>
+      );
+    },
+    size: 110,
+  },
+  {
     id: "weight",
     header: "Weight",
     // Weight is calculated as |market value| / total |market value| — set per-render via meta

@@ -72,6 +72,10 @@ export interface PositionRisk {
   realizedPnlUsd: number;
   isStale: boolean;
   priceAgeSeconds: number;
+  parametricVaR95?: number;
+  parametricVaR99?: number;
+  historicalVaR95?: number;
+  historicalVaR99?: number;
 }
 
 export interface RiskSnapshot {
@@ -85,6 +89,10 @@ export interface RiskSnapshot {
   openPositionCount: number;
   stalePositionCount: number;
   dataQuality: string;
+  portfolioParametricVaR95?: number;
+  portfolioParametricVaR99?: number;
+  portfolioHistoricalVaR95?: number;
+  portfolioHistoricalVaR99?: number;
 }
 
 export interface PositionDiscrepancy {
