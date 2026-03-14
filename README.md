@@ -54,6 +54,8 @@ Argus demonstrates production-grade financial systems engineering:
 
 **Data flow:** Market data and trades enter via Kafka topics → the Risk Engine aggregates positions using FIFO cost basis → snapshots are published back to Kafka and persisted to PostgreSQL → the API broadcasts updates over SignalR → the dashboard renders live.
 
+→ See [Architecture Deep-Dive](docs/architecture.md) for detailed Mermaid diagrams
+
 ## Tech Stack
 
 | Layer | Technology |
