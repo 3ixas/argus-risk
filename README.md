@@ -4,6 +4,7 @@
 
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000)](https://nextjs.org/)
+[![CI](https://github.com/3ixas/argus-risk/actions/workflows/ci.yml/badge.svg)](https://github.com/3ixas/argus-risk/actions/workflows/ci.yml)
 
 ## Overview
 

@@ -20,6 +20,8 @@ function makePosition(overrides: Partial<PositionRisk>): PositionRisk {
     unrealizedPnlUsd: 500,
     realizedPnl: 0,
     realizedPnlUsd: 0,
+    isStale: false,
+    priceAgeSeconds: 0,
     ...overrides,
   };
 }

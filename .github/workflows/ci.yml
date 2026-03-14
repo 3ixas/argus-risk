@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore .NET dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Test
+        run: dotnet test --no-build --verbosity normal
+
+      - name: Install frontend dependencies
+        working-directory: src/Argus.Web
+        run: npm ci
+
+      - name: TypeScript type check
+        working-directory: src/Argus.Web
+        run: npm run type-check
+
+      - name: Run frontend tests
+        working-directory: src/Argus.Web
+        run: npm run test
