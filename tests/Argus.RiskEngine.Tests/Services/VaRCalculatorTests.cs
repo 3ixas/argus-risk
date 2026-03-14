@@ -182,4 +182,59 @@ public sealed class VaRCalculatorTests
         var2x!.Value.Should().BeApproximately(var1x!.Value * 2, 0.01m,
             "VaR scales linearly with position size");
     }
+
+    // --- Expected Shortfall (CVaR) ---
+
+    [Fact]
+    public void CalculateExpectedShortfall_NullPrices_ReturnsNull()
+    {
+        VaRCalculator.CalculateExpectedShortfall(null!, 10_000m, 0.05).Should().BeNull();
+    }
+
+    [Fact]
+    public void CalculateExpectedShortfall_InsufficientHistory_ReturnsNull()
+    {
+        // 29 prices — one below the 30-price minimum
+        var prices = FlatPriceSeries(100m, 29);
+        VaRCalculator.CalculateExpectedShortfall(prices, 10_000m, 0.05).Should().BeNull();
+    }
+
+    [Fact]
+    public void CalculateExpectedShortfall_ZeroVolatility_ReturnsZero()
+    {
+        // Flat prices → all returns = 0 → tail mean = 0 → ES = 0
+        var prices = FlatPriceSeries(100m, 60);
+        var result = VaRCalculator.CalculateExpectedShortfall(prices, 10_000m, 0.05);
+        result.Should().Be(0m);
+    }
+
+    [Fact]
+    public void CalculateExpectedShortfall_95_GreaterThanOrEqualToVaR95()
+    {
+        // ES is the mean of the tail beyond VaR — so ES ≥ VaR at the same confidence level
+        var prices = ConstantReturnSeries(100m, -0.005m, 60);
+
+        var var95 = VaRCalculator.CalculateHistorical(prices, 10_000m, 0.05);
+        var es95 = VaRCalculator.CalculateExpectedShortfall(prices, 10_000m, 0.05);
+
+        var95.Should().NotBeNull();
+        es95.Should().NotBeNull();
+        es95!.Value.Should().BeGreaterOrEqualTo(var95!.Value,
+            "ES (CVaR) is the average beyond the VaR threshold, so ES ≥ VaR");
+    }
+
+    [Fact]
+    public void CalculateExpectedShortfall_LinearScalingWithPositionValue()
+    {
+        // ES should scale linearly with position size — same return distribution, doubled exposure
+        var prices = ConstantReturnSeries(100m, -0.005m, 60);
+
+        var es1x = VaRCalculator.CalculateExpectedShortfall(prices, 10_000m, 0.05);
+        var es2x = VaRCalculator.CalculateExpectedShortfall(prices, 20_000m, 0.05);
+
+        es1x.Should().NotBeNull();
+        es2x.Should().NotBeNull();
+        es2x!.Value.Should().BeApproximately(es1x!.Value * 2, 0.01m,
+            "ES scales linearly with position size");
+    }
 }

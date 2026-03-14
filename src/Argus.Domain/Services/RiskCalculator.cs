@@ -85,6 +85,8 @@ public static class RiskCalculator
         var parametricVaR99 = VaRCalculator.CalculateParametric(priceHistory!, positionValueUsd, 2.326);
         var historicalVaR95 = VaRCalculator.CalculateHistorical(priceHistory!, positionValueUsd, 0.05);
         var historicalVaR99 = VaRCalculator.CalculateHistorical(priceHistory!, positionValueUsd, 0.01);
+        var cvaR95 = VaRCalculator.CalculateExpectedShortfall(priceHistory!, positionValueUsd, 0.05);
+        var cvaR99 = VaRCalculator.CalculateExpectedShortfall(priceHistory!, positionValueUsd, 0.01);
 
         return new PositionRisk(
             InstrumentId: position.InstrumentId,
@@ -103,7 +105,9 @@ public static class RiskCalculator
             ParametricVaR95: parametricVaR95,
             ParametricVaR99: parametricVaR99,
             HistoricalVaR95: historicalVaR95,
-            HistoricalVaR99: historicalVaR99);
+            HistoricalVaR99: historicalVaR99,
+            CVaR95: cvaR95,
+            CVaR99: cvaR99);
     }
 
     /// <summary>
@@ -143,6 +147,12 @@ public static class RiskCalculator
         var portfolioHistVaR99 = positions.Any(p => p.HistoricalVaR99.HasValue)
             ? positions.Sum(p => p.HistoricalVaR99 ?? 0m)
             : (decimal?)null;
+        var portfolioCVaR95 = positions.Any(p => p.CVaR95.HasValue)
+            ? positions.Sum(p => p.CVaR95 ?? 0m)
+            : (decimal?)null;
+        var portfolioCVaR99 = positions.Any(p => p.CVaR99.HasValue)
+            ? positions.Sum(p => p.CVaR99 ?? 0m)
+            : (decimal?)null;
 
         return new RiskSnapshot(
             Id: Guid.NewGuid(),
@@ -158,6 +168,8 @@ public static class RiskCalculator
             PortfolioParametricVaR95: portfolioParamVaR95,
             PortfolioParametricVaR99: portfolioParamVaR99,
             PortfolioHistoricalVaR95: portfolioHistVaR95,
-            PortfolioHistoricalVaR99: portfolioHistVaR99);
+            PortfolioHistoricalVaR99: portfolioHistVaR99,
+            PortfolioCVaR95: portfolioCVaR95,
+            PortfolioCVaR99: portfolioCVaR99);
     }
 }

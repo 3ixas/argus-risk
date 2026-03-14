@@ -49,8 +49,8 @@ export function PortfolioOverview() {
 
   if (!snapshot) {
     return (
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-7">
-        {Array.from({ length: 7 }).map((_, i) => (
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-9">
+        {Array.from({ length: 9 }).map((_, i) => (
           <SkeletonCard key={i} />
         ))}
       </div>
@@ -71,8 +71,18 @@ export function PortfolioOverview() {
       ? `P: ${formatCurrency(snapshot.portfolioParametricVaR99)} · H: ${formatCurrency(snapshot.portfolioHistoricalVaR99!)}`
       : "—";
 
+  const cvar95Display =
+    snapshot.portfolioCVaR95 != null
+      ? formatCurrency(snapshot.portfolioCVaR95)
+      : "—";
+
+  const cvar99Display =
+    snapshot.portfolioCVaR99 != null
+      ? formatCurrency(snapshot.portfolioCVaR99)
+      : "—";
+
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-7">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-9">
       <MetricCard
         title="Net P&L"
         value={formatCurrency(netPnl, "USD", true)}
@@ -99,6 +109,14 @@ export function PortfolioOverview() {
       <MetricCard
         title="VaR 99% (1-day)"
         value={var99Value}
+      />
+      <MetricCard
+        title="ES 95% (1-day)"
+        value={cvar95Display}
+      />
+      <MetricCard
+        title="ES 99% (1-day)"
+        value={cvar99Display}
       />
       <Card className="col-span-2 lg:col-span-1">
         <CardHeader className="pb-2">
