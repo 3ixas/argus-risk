@@ -4,6 +4,7 @@
 
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000)](https://nextjs.org/)
+[![CI](https://github.com/3ixas/argus-risk/actions/workflows/ci.yml/badge.svg)](https://github.com/3ixas/argus-risk/actions/workflows/ci.yml)
 
 ## Overview
 
@@ -53,6 +54,8 @@ Argus demonstrates production-grade financial systems engineering:
 
 **Data flow:** Market data and trades enter via Kafka topics → the Risk Engine aggregates positions using FIFO cost basis → snapshots are published back to Kafka and persisted to PostgreSQL → the API broadcasts updates over SignalR → the dashboard renders live.
 
+→ See [Architecture Deep-Dive](docs/architecture.md) for detailed Mermaid diagrams
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -91,6 +94,7 @@ Open **http://localhost:3000** — the full stack starts automatically, includin
 |---------|-----|-------------|
 | **Dashboard** | http://localhost:3000 | Next.js frontend |
 | **API** | http://localhost:5050 | REST + SignalR hub |
+| **Swagger UI** | http://localhost:5050/swagger | Interactive API documentation |
 | **Market Data Simulator** | http://localhost:5001/health | Health + metrics |
 | **Trade Simulator** | http://localhost:5002/health | Health + metrics |
 | **Risk Engine** | http://localhost:5003/health | Health + metrics |

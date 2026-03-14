@@ -76,6 +76,8 @@ export interface PositionRisk {
   parametricVaR99?: number;
   historicalVaR95?: number;
   historicalVaR99?: number;
+  cVaR95?: number;
+  cVaR99?: number;
 }
 
 export interface RiskSnapshot {
@@ -93,6 +95,8 @@ export interface RiskSnapshot {
   portfolioParametricVaR99?: number;
   portfolioHistoricalVaR95?: number;
   portfolioHistoricalVaR99?: number;
+  portfolioCVaR95?: number;
+  portfolioCVaR99?: number;
 }
 
 export interface PositionDiscrepancy {

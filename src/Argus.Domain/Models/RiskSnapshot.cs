@@ -18,5 +18,7 @@ public sealed record RiskSnapshot(
     decimal? PortfolioParametricVaR95,
     decimal? PortfolioParametricVaR99,
     decimal? PortfolioHistoricalVaR95,
-    decimal? PortfolioHistoricalVaR99
+    decimal? PortfolioHistoricalVaR99,
+    decimal? PortfolioCVaR95,
+    decimal? PortfolioCVaR99
 );

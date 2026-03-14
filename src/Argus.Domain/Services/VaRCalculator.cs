@@ -79,6 +79,40 @@ public static class VaRCalculator
     }
 
     /// <summary>
+    /// Expected Shortfall (CVaR) — the average loss in the worst (quantile × 100)% of days.
+    /// Always ≥ the VaR at the same confidence level: it is the mean of the tail beyond the VaR cut.
+    ///
+    /// Used in Basel III/IV (FRTB) as the primary risk measure, replacing VaR.
+    /// Returns null if insufficient price history is available.
+    /// Returns 0 minimum (ES cannot be a gain).
+    /// </summary>
+    /// <param name="prices">Ordered price series (oldest → newest).</param>
+    /// <param name="positionValueUsd">Absolute position value in USD.</param>
+    /// <param name="quantile">Left-tail quantile: 0.05 for 95% ES, 0.01 for 99% ES.</param>
+    public static decimal? CalculateExpectedShortfall(
+        IReadOnlyList<decimal> prices,
+        decimal positionValueUsd,
+        double quantile)
+    {
+        if (prices == null || prices.Count < MinimumPrices) return null;
+
+        var returns = ComputeReturns(prices);
+        if (returns.Count < 2) return null;
+
+        var sorted = returns.OrderBy(r => r).ToList();
+        var cutIndex = (int)Math.Floor(quantile * sorted.Count);
+        cutIndex = Math.Clamp(cutIndex, 0, sorted.Count);
+
+        // Take the tail (returns worse than the VaR cut)
+        var tailReturns = sorted.Take(cutIndex).ToList();
+        if (tailReturns.Count == 0) return 0m;
+
+        var tailMean = tailReturns.Average();
+        var cvar = -tailMean * Math.Abs(positionValueUsd);
+        return Math.Max(0m, cvar);
+    }
+
+    /// <summary>
     /// Computes log-close returns: r_t = (P_t - P_{t-1}) / P_{t-1}.
     /// Skips entries where the previous price is zero to avoid division by zero.
     /// </summary>

@@ -23,5 +23,7 @@ public sealed record PositionRisk(
     decimal? ParametricVaR95,
     decimal? ParametricVaR99,
     decimal? HistoricalVaR95,
-    decimal? HistoricalVaR99
+    decimal? HistoricalVaR99,
+    decimal? CVaR95,
+    decimal? CVaR99
 );

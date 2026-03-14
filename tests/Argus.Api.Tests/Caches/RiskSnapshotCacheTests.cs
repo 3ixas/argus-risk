@@ -22,7 +22,9 @@ public sealed class RiskSnapshotCacheTests
             PortfolioParametricVaR95: null,
             PortfolioParametricVaR99: null,
             PortfolioHistoricalVaR95: null,
-            PortfolioHistoricalVaR99: null
+            PortfolioHistoricalVaR99: null,
+            PortfolioCVaR95: null,
+            PortfolioCVaR99: null
         );
 
     [Fact]

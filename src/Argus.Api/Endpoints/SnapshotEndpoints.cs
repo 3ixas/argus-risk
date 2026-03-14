@@ -12,8 +12,8 @@ public static class SnapshotEndpoints
         var group = app.MapGroup("/api/snapshots")
             .WithTags("Snapshots");
 
-        group.MapGet("/", GetSnapshots);
-        group.MapGet("/count", GetSnapshotCount);
+        group.MapGet("/", GetSnapshots).WithSummary("Get historical risk snapshots within a time range");
+        group.MapGet("/count", GetSnapshotCount).WithSummary("Get count of snapshots within a time range");
     }
 
     /// <summary>
