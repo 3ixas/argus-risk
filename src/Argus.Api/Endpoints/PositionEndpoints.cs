@@ -15,13 +15,17 @@ public static class PositionEndpoints
                 .Where(p => p.IsOpen)
                 .ToListAsync();
             return Results.Ok(positions);
-        });
+        })
+        .WithTags("Positions")
+        .WithSummary("Get all open positions");
 
         group.MapGet("/{instrumentId:guid}", async (Guid instrumentId, IQuerySession session) =>
         {
             var position = await session.LoadAsync<Position>(instrumentId);
             return position is null ? Results.NotFound() : Results.Ok(position);
-        });
+        })
+        .WithTags("Positions")
+        .WithSummary("Get position by instrument ID");
 
         return group;
     }

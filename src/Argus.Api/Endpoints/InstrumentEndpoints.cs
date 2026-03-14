@@ -9,7 +9,9 @@ public static class InstrumentEndpoints
         var group = app.MapGroup("/api/instruments");
 
         group.MapGet("/", (InstrumentRepository repository) =>
-            Results.Ok(repository.GetAll()));
+            Results.Ok(repository.GetAll()))
+            .WithTags("Instruments")
+            .WithSummary("Get all tradeable instruments");
 
         return group;
     }

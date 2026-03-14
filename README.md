@@ -92,6 +92,7 @@ Open **http://localhost:3000** — the full stack starts automatically, includin
 |---------|-----|-------------|
 | **Dashboard** | http://localhost:3000 | Next.js frontend |
 | **API** | http://localhost:5050 | REST + SignalR hub |
+| **Swagger UI** | http://localhost:5050/swagger | Interactive API documentation |
 | **Market Data Simulator** | http://localhost:5001/health | Health + metrics |
 | **Trade Simulator** | http://localhost:5002/health | Health + metrics |
 | **Risk Engine** | http://localhost:5003/health | Health + metrics |

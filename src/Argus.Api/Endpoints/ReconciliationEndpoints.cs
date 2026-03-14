@@ -23,13 +23,17 @@ public static class ReconciliationEndpoints
             ReconciliationRunsCounter.Add(1, new KeyValuePair<string, object?>("result", result));
 
             return Results.Ok(report);
-        });
+        })
+        .WithTags("Reconciliation")
+        .WithSummary("Run a reconciliation check between live state and event replay");
 
         group.MapGet("/latest", (ReconciliationCache cache) =>
         {
             var report = cache.Latest;
             return report is null ? Results.NotFound() : Results.Ok(report);
-        });
+        })
+        .WithTags("Reconciliation")
+        .WithSummary("Get the most recent reconciliation report");
 
         return group;
     }

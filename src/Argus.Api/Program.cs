@@ -77,6 +77,10 @@ builder.Services.AddHostedService<ReplayWorker>();
 // Health checks
 builder.Services.AddHealthChecks();
 
+// OpenAPI / Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 // Observable gauges (read at Prometheus scrape time)
@@ -90,6 +94,9 @@ ArgusDiagnostics.Meter.CreateObservableGauge(
     "argus.api.alerts.active",
     () => alertCacheForGauge.ActiveCount,
     description: "Number of active (unresolved) alerts");
+
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors();
 
@@ -111,7 +118,9 @@ app.MapGet("/", (RiskSnapshotCache snapshotCache) => new
         NetPnlUsd = snapshotCache.Latest?.TotalNetPnlUsd ?? 0m
     },
     Timestamp = DateTimeOffset.UtcNow
-});
+})
+.WithTags("System")
+.WithSummary("API health and portfolio status");
 
 // REST endpoints
 app.MapPositionEndpoints();

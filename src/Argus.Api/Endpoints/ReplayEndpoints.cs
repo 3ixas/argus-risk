@@ -12,12 +12,12 @@ public static class ReplayEndpoints
         var group = app.MapGroup("/api/replay")
             .WithTags("Replay");
 
-        group.MapPost("/start", StartReplay);
-        group.MapPost("/stop", StopReplay);
-        group.MapPost("/pause", PauseReplay);
-        group.MapPost("/resume", ResumeReplay);
-        group.MapGet("/status", GetReplayStatus);
-        group.MapGet("/available-range", GetAvailableRange);
+        group.MapPost("/start", StartReplay).WithSummary("Start a historical replay session");
+        group.MapPost("/stop", StopReplay).WithSummary("Stop the active replay session");
+        group.MapPost("/pause", PauseReplay).WithSummary("Pause the active replay session");
+        group.MapPost("/resume", ResumeReplay).WithSummary("Resume a paused replay session");
+        group.MapGet("/status", GetReplayStatus).WithSummary("Get current replay session status");
+        group.MapGet("/available-range", GetAvailableRange).WithSummary("Get earliest and latest available snapshot timestamps for replay");
     }
 
     /// <summary>

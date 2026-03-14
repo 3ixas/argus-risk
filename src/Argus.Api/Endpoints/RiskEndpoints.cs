@@ -12,7 +12,9 @@ public static class RiskEndpoints
         {
             var snapshot = cache.Latest;
             return snapshot is null ? Results.NotFound() : Results.Ok(snapshot);
-        });
+        })
+        .WithTags("Risk")
+        .WithSummary("Get the latest aggregated risk snapshot");
 
         return group;
     }
