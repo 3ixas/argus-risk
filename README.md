@@ -56,6 +56,12 @@ Argus demonstrates production-grade financial systems engineering:
 
 → See [Architecture Deep-Dive](docs/architecture.md) for detailed Mermaid diagrams
 
+## Dashboard
+
+![Argus Risk Dashboard — portfolio overview](docs/screenshot_1.png)
+
+![Argus Risk Dashboard — open positions table](docs/screenshot_2.png)
+
 ## Tech Stack
 
 | Layer | Technology |
