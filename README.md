@@ -22,6 +22,7 @@ Argus demonstrates production-grade financial systems engineering:
 - **Real-time P&L** — Unrealised, realised, and total P&L with live SignalR updates
 - **Multi-Currency** — USD, EUR, GBP, JPY, CHF positions with automatic FX conversion
 - **Concentration Analysis** — Exposure breakdown by sector, currency, and instrument
+- **Value at Risk** — Parametric and historical simulation VaR (95%/99%), plus CVaR/Expected Shortfall (Basel III/IV)
 - **Time Travel** — Replay historical state and query any point-in-time snapshot
 - **Correctness Guarantees** — SHA-256 checksums and full reconciliation verification
 - **Alerting** — Kafka-based alert pipeline with deduplication and resolution tracking
@@ -188,7 +189,7 @@ argus-risk/
 │   ├── Argus.Api/                   # Minimal APIs + SignalR hub
 │   └── Argus.Web/                   # Next.js 14 dashboard
 ├── tests/
-│   ├── Argus.RiskEngine.Tests/      # Unit tests (63 tests)
+│   ├── Argus.RiskEngine.Tests/      # Unit tests (87 tests)
 │   └── Argus.Api.Tests/             # API unit tests (39 tests)
 ├── docker/
 │   ├── docker-compose.yml           # Full stack (12 services)
@@ -197,7 +198,9 @@ argus-risk/
 │   ├── grafana/                     # Pre-provisioned dashboards
 │   └── prometheus/                  # Scrape config
 ├── docs/
-│   └── project-spec.md              # Full feature requirements
+│   ├── architecture.md              # Mermaid diagrams — system overview, event sourcing, data pipeline
+│   ├── project-spec.md              # Full feature requirements
+│   └── screenshot_*.png             # Dashboard screenshots
 └── scripts/
     └── seed-data.sql                # Reference instrument data
 ```
@@ -207,8 +210,11 @@ argus-risk/
 ### Running Tests
 
 ```bash
-# All tests (134 total)
+# All .NET tests (126 total: 87 RiskEngine + 39 Api)
 dotnet test
+
+# Frontend tests (32 total)
+cd src/Argus.Web && npm run test
 
 # With output
 dotnet test --logger "console;verbosity=normal"
@@ -289,11 +295,15 @@ Key settings in `appsettings.json` (overridable via environment variables):
 - [x] **Feature 8**: Observability — OpenTelemetry, 16 custom metrics, Grafana dashboards
 - [x] **Feature 9**: Replay Mode — historical playback at 1x/5x/10x/60x
 - [x] **Feature 10**: Fault Handling & Alerting — circuit breakers, staleness detection, alert pipeline
+- [x] **Feature 11**: Historical VaR — parametric and historical simulation, 95%/99% confidence
+- [x] **Feature 12**: CI Pipeline — GitHub Actions with dotnet test, TypeScript check, Vitest
+- [x] **Feature 13**: OpenAPI / Swagger UI — all 21 endpoints documented and explorable at `/swagger`
+- [x] **Feature 14**: Expected Shortfall (CVaR) — Basel III/IV tail risk measure alongside VaR
+- [x] **Feature 15**: Architecture Documentation — Mermaid diagrams, system overview, design decisions
 
 ### Version 2 (Ideas)
 
 - [ ] Options Greeks — Delta, Gamma, Vega risk on derivatives
-- [ ] VaR / CVaR — Historical simulation and Monte Carlo Value-at-Risk
 - [ ] Order Book Simulation — Limit order book with bid-ask dynamics
 - [ ] Multi-Portfolio — Separate books with cross-portfolio netting
 - [ ] Stress Testing — Scenario analysis with user-defined shocks
