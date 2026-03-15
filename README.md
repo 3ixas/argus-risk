@@ -6,6 +6,10 @@
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000)](https://nextjs.org/)
 [![CI](https://github.com/3ixas/argus-risk/actions/workflows/ci.yml/badge.svg)](https://github.com/3ixas/argus-risk/actions/workflows/ci.yml)
 
+![Argus Risk Dashboard — portfolio overview](docs/screenshot_1.png)
+
+![Argus Risk Dashboard — open positions table](docs/screenshot_2.png)
+
 ## Overview
 
 Argus demonstrates production-grade financial systems engineering:
@@ -56,12 +60,6 @@ Argus demonstrates production-grade financial systems engineering:
 **Data flow:** Market data and trades enter via Kafka topics → the Risk Engine aggregates positions using FIFO cost basis → snapshots are published back to Kafka and persisted to PostgreSQL → the API broadcasts updates over SignalR → the dashboard renders live.
 
 → See [Architecture Deep-Dive](docs/architecture.md) for detailed Mermaid diagrams
-
-## Dashboard
-
-![Argus Risk Dashboard — portfolio overview](docs/screenshot_1.png)
-
-![Argus Risk Dashboard — open positions table](docs/screenshot_2.png)
 
 ## Tech Stack
 
