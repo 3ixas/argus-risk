@@ -6,6 +6,9 @@ on:
       - main
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -38,6 +41,14 @@ jobs:
         working-directory: src/Argus.Web
         run: npm run type-check
 
+      - name: Lint frontend
+        working-directory: src/Argus.Web
+        run: npm run lint
+
       - name: Run frontend tests
         working-directory: src/Argus.Web
         run: npm run test
+
+      - name: Build frontend
+        working-directory: src/Argus.Web
+        run: npm run build

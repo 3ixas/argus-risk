@@ -1,9 +1,9 @@
 using Argus.Domain.Aggregates;
 using Argus.Domain.Models;
+using JasperFx;
 using Marten;
 using Marten.Events.Projections;
 using Microsoft.Extensions.DependencyInjection;
-using Weasel.Core;
 
 namespace Argus.Infrastructure.EventStore;
 
